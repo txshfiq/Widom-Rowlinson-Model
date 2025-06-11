@@ -1,0 +1,12 @@
+/usr/bin/ld: final link failed: Stale file handle
+collect2: error: ld returned 1 exit status
+Compiling... lmfao
+Traceback (most recent call last):
+  File "/home/tashfiq/wr_lattice/project.py", line 78, in <module>
+    compile_wr(SRC, BIN)
+  File "/home/tashfiq/wr_lattice/project.py", line 15, in compile_wr
+    subprocess.run(cmd, check=True)
+  File "/sw/pkgs/arc/python3.11-anaconda/2024.02-1/lib/python3.11/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['g++', '-std=c++17', '-I./include', 'src/wr_square.cpp', '-o', 'wr_square', '-lstdc++fs']' returned non-zero exit status 1.
+[ERROR row::action] Error executing command.

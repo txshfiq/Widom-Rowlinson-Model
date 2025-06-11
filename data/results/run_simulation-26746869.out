@@ -1,0 +1,23 @@
+Compiling... lmfao
+Running ts where L = 30 M = 9 z = 0.9
+Program output:
+ Running simulation with parameters: L = 30, M = 9, z = 0.9
+[31mVariance too high at sweep 2500, continuing simulation...[0m
+[31mVariance too high at sweep 5000, continuing simulation...[0m
+[31mVariance too high at sweep 7500, continuing simulation...[0m
+[31mVariance too high at sweep 10000, continuing simulation...[0m
+[31mVariance too high at sweep 12500, continuing simulation...[0m
+[31mVariance too high at sweep 15000, continuing simulation...[0m
+[31mVariance too high at sweep 17500, continuing simulation...[0m
+[31mVariance too high at sweep 20000, continuing simulation...[0m
+[31mVariance too high at sweep 22500, continuing simulation...[0m
+[31mVariance too high at sweep 25000, continuing simulation...[0m
+[31mVariance too high at sweep 27500, continuing simulation...[0m
+[31mVariance too high at sweep 30000, continuing simulation...[0m
+[31mVariance too high at sweep 32500, continuing simulation...[0m
+[31mVariance too high at sweep 35000, continuing simulation...[0m
+[31mVariance too high at sweep 37500, continuing simulation...[0m
+[31mMaximum sweeps reached without finding equilibrium point, will start collecting data... sample size: 80000[0m
+[32mData collection complete. Total sweeps: 120000[0m
+[33mBinder cumulant: 0.643055[0m
+
