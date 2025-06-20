@@ -1,0 +1,15 @@
+Simulation parameters: L = 46 M = 8 z = 0.8
+Traceback (most recent call last):
+  File "/home/tashfiq/wr_lattice/project.py", line 86, in <module>
+    output = run_wr(BIN, L, M, z)
+  File "/home/tashfiq/wr_lattice/project.py", line 27, in run_wr
+    completed = subprocess.run(
+        cmd,
+    ...<2 lines>...
+        check=True
+    )
+  File "/home/tashfiq/micromamba/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['./wr_square', '--L', '46', '--M', '8', '--z', '0.8']' died with <Signals.SIGBUS: 7>.
+[ERROR row::action] Error executing command.

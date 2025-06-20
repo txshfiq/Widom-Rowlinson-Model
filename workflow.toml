@@ -12,7 +12,7 @@ products = ["counts.txt.in_progress"]
 command = "python project.py -z {/z} -M {/M} -L {/L} --action run_simulation {directory}"
 
 [action.resources]
-walltime.per_directory = "00:07:00"
+walltime.per_directory = "10:00:00"
 
 [action.group]
 split_by_sort_key = true

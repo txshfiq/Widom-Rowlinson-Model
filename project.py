@@ -2,6 +2,7 @@ import signac
 import argparse
 import subprocess
 
+'''
 def compile_wr(source: str, output: str):
     cmd = [
         'g++',
@@ -11,8 +12,9 @@ def compile_wr(source: str, output: str):
         '-o', output,             # e.g. 'wr_square'
         '-lstdc++fs',             # link the filesystem library
     ]
-    print("Compiling... lmfao")
+    print("Compiling...")
     subprocess.run(cmd, check=True)
+'''
 
 def run_wr(executable: str, L: int, M: int, z: float) -> str:
     cmd = [
@@ -21,7 +23,7 @@ def run_wr(executable: str, L: int, M: int, z: float) -> str:
         '--M', str(M),
         '--z', str(z),
     ]
-    print("Running ts where L =", L, "M =", M, "z =", z)
+    print("Simulation parameters: L =", L, "M =", M, "z =", z)
     completed = subprocess.run(
         cmd,
         capture_output=True,
@@ -30,15 +32,21 @@ def run_wr(executable: str, L: int, M: int, z: float) -> str:
     )
     return completed.stdout
 
-
+'''
 def run_simulation(*job):
     cumulant = float(output)
     for job in project:
         with open(job.fn("cumulant_values.txt"), "w") as file:
             file.write(str(cumulant) + "\n")
+'''
+
+def output_cumulant(job, output: str):
+    cumulant = float(output)
+    with open(job.fn("cumulant.txt"), "w") as file:
+        file.write(str(cumulant) + "\n")
 
 if __name__ == '__main__':
-    # Parse the command line arguments: python action.py --action <ACTION> [DIRECTORIES]
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -68,15 +76,19 @@ if __name__ == '__main__':
     project = signac.get_project("/home/tashfiq/wr_lattice/data/workspace")
     jobs = [project.open_job(id=directory) for directory in args.directories]
 
-    SRC  = 'src/wr_square.cpp'
-    BIN  = 'wr_square'
+    SRC  = 'src/main.cpp'
+    BIN  = 'main'
 
     L = args.num3
     M = args.num2
     z = args.num1
 
-    compile_wr(SRC, BIN)
     output = run_wr(BIN, L, M, z)
+
+    for job in project:
+        if job.sp.L == L and job.sp.M == M and job.sp.z == z:
+            output_cumulant(job, output)
+    
     print("Program output:\n", output)
 
     # Call the action
