@@ -22,12 +22,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    lattice_graph = arch_lattices.gen_lattice(args.lattice, [args.L, args.L])
+    lattice_graph = arch_lattices.gen_lattice(args.lattice, [args.L, args.L], True)
         
     with open("temp_lattice_data.txt", "w") as f:           # write lattice graph adjacency data into file to be read by main.cpp
         for x in lattice_graph.adjacency_list():
             print(x, file=f)
 
     with open("temp_lattice_parameters.txt", "w") as f:
-        print(args.L)
-        print(args.lattice)
+        print(args.L, file=f)
+        print(args.lattice, file=f)

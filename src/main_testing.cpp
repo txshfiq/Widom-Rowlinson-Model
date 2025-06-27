@@ -28,7 +28,7 @@ struct MyArgs : public argparse::Args {
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -g
+    g++ -std=c++17 -I./include src/main_testing.cpp -o main -lstdc++fs -g
     ./main --L 15 --M 15 --z 6 --lat square
 
 
@@ -42,41 +42,6 @@ openrand::Philox rng(seed, 0);
 int roundDownToNearestTen(double value) {
     return std::floor(value / 10.0)*10.0;
 }
-
-const char* colors[] = {
-  "\033[0m",     // 0: reset (empty)
-  "\033[31m",    // 1: red
-  "\033[32m",    // 2: green
-  "\033[33m",    // 3: yellow
-  "\033[34m",    // 4: blue
-  "\033[35m",    // 5: magenta
-  "\033[36m",    // 6: cyan
-  "\033[91m",    // 7: bright red
-  "\033[92m",    // 8: bright green
-  "\033[93m",    // 9: bright yellow
-  "\033[94m",    // 10: bright blue
-  "\033[95m",    // 11: bright magenta
-  "\033[96m",    // 12: bright cyan
-  "\033[90m",    // 13: gray
-  "\033[97m",    // 14: white
-  "\033[30m",    // 15: black
-  "\033[1;31m",  // 16: bold red
-  "\033[1;32m",  // 17: bold green
-  "\033[1;33m",  // 18: bold yellow
-  "\033[1;34m",  // 19: bold blue
-  "\033[1;35m",  // 20: bold magenta
-  "\033[1;36m",  // 21: bold cyan
-  "\033[1;91m",  // 22: bold bright red
-  "\033[1;92m",  // 23: bold bright green
-  "\033[1;93m",  // 24: bold bright yellow
-  "\033[1;94m",  // 25: bold bright blue
-  "\033[1;95m",  // 26: bold bright magenta
-  "\033[1;96m",  // 27: bold bright cyan
-  "\033[1;97m",  // 28: bold white
-  "\033[1;90m"   // 29: bold gray
-};
-
-
 
 double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
     std::vector<int> occupancy_nodes;
@@ -180,22 +145,32 @@ int main(int argc, char* argv[]) {
     int M = args.M;
     double z = args.z;
     string lat = args.lat;
+    
+    int sweeps = 50000; // will be modified during runtime when equilibrium point is reached
+    int sample_size = 100000;
 
+   
     if (L <= 0 || M <= 0 || z <= 0) {
         std::cerr << "Error: All parameters must be positive values." << std::endl;
         return 1;
     }
-    
-    int sweeps = 30000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 50000;
 
-
-    std::ofstream of_auto_cp("output_auto_cp.txt");
-    if (!of_auto_cp.is_open()) {
+    std::ofstream of_cp("output_cp.txt");
+    if (!of_cp.is_open()) {
         std::cerr << "Failed to open output_cp.txt\n";
         return 1;
     }
 
+
+
+    std::ofstream node_coloring("node_color_data.txt");
+    if (!node_coloring.is_open()) {
+        std::cerr << "Failed to open node_color_data.txt\n";
+        return 1;
+    }
+    
+
+    std::vector<std::vector<int>> lattice_adjacency_list;
 
     std::string gen_lat =
     "python lattice_generation.py -L "
@@ -203,20 +178,22 @@ int main(int argc, char* argv[]) {
         + " -l "
         + lat;        
 
-    FILE* lattice_genFile = popen(gen_lat.c_str(), "r");
-    if (!lattice_genFile) {
+    FILE* in = popen(gen_lat.c_str(), "r");
+    if (!in) {
         std::cerr << "Failed to execute command" << std::endl;
         return 1;
     }
-    pclose(lattice_genFile);
+    pclose(in);
 
     std::ifstream infile("temp_lattice_data.txt");
+
     if (!infile) {
         std::cerr << "Error opening file!" << std::endl;
         return 1;
     }
+
     string line;
-    std::vector<std::vector<int>> lattice_adjacency_list;
+
     while (std::getline(infile, line)) {
         // turn “[”, “]”, “,” into plain spaces:
         for (char& c : line) {
@@ -269,18 +246,15 @@ int main(int argc, char* argv[]) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     vector<double> crystal_parameters_test;
-    vector<double> crystal_parameters_sampling;
+    vector<double> crystal_parameters_eq;
 
     double critical_variance = 0.0005; // critical variance for equilibrium point detection
     int block_size = 2500; // block size for variance calculation
-
-    unsigned int all_ones = ~0u;        // 0b1111 … 1111  (all bits = 1)
-    int MAX_INTEGER = static_cast<int>(all_ones >> 1);  // 0b0111 … 1111 ⇒ largest signed int
-    int critical_sweeps = MAX_INTEGER; // number of sweeps at which the critical point is reached, will be modified during runtime
+    int critical_sweeps = 1000000; // number of sweeps at which the critical point is reached, will be modified during runtime
 
     bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
-    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", lattice type: " << lat << std::endl;
+    // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
 
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
@@ -330,27 +304,30 @@ int main(int argc, char* argv[]) {
             }
         }
     
-        double p = crystalParameter(nodes, lattice_adjacency_list);
-        
+        double param = crystalParameter(nodes, lattice_adjacency_list);
+
+        of_cp << param << std::endl;
+
+        /*
         if (equilibrium_point_found == false) {
             if (s % block_size != 0) {
                 crystal_parameters_test.push_back(p);
             }
             else {
                 if (variance(crystal_parameters_test) < critical_variance) {
-                    std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    // std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
                     critical_sweeps = s; // set critical sweeps to current sweep
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
                 if (s >= sweeps) {
-                    std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    // std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
                     critical_sweeps = s; // set critical sweeps to current sweep
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
                 else {
-                    std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
+                    // std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
                 }
                 crystal_parameters_test.clear(); // clear the test array for next variance calculation
             }
@@ -359,63 +336,34 @@ int main(int argc, char* argv[]) {
         
         if (s >= critical_sweeps) {
             if (s < sweeps) {
-                crystal_parameters_sampling.push_back(p);
-                of_auto_cp << p << std::endl;                
+                crystal_parameters_eq.push_back(p);
             }
-        } 
+        }
+        */ 
         
         s++;
     }
-
-    std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
+    
 
     
-    std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
+    for (int k = 0; k < nodes.size(); k++) {
+        node_coloring << nodes[k] << std::endl;
+    }
 
-    std::string command = "python script_auto.py"; 
-    FILE* in = popen(command.c_str(), "r");
-    if (!in) {
+    node_coloring.close();
+    
+
+
+    std::string disp_lat ="python lattice_display.py";    
+
+    FILE* oth = popen(disp_lat.c_str(), "r");
+    if (!oth) {
         std::cerr << "Failed to execute command" << std::endl;
         return 1;
     }
+    pclose(oth);
 
-    double value;
-    while (fscanf(in, "%lf", &value) == 1) {
-        std::cout << value << std::endl;
-    }
-
-    std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
-
-    
-    /*
-    int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
-    int counterForAverage = 0;
-
-    double fourthOrderAvg = 0;
-    double secondOrderAvg = 0;
-    for (int i = 1; i <= crystal_parameters_sampling.size(); i++) {
-        if (i % decorrelationTime == 0) {
-            counterForAverage++;
-            fourthOrderAvg += pow(crystal_parameters_sampling[i-1],4);
-            secondOrderAvg += pow(crystal_parameters_sampling[i-1],2);
-        }
-    }
-
-    fourthOrderAvg /= counterForAverage;
-    secondOrderAvg /= counterForAverage;
-    
-    double cumulant = 1 - (fourthOrderAvg/(3*pow(secondOrderAvg, 2)));
-
-    // std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
-    std::cout << cumulant << std::endl;
-
-    */
-
-
-    
-    of_auto_cp.close();
-    // remove("output_auto_cp.txt");
-    
+    of_cp.close();
     
 
     return 0;

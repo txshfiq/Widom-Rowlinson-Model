@@ -1,15 +1,11 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <random>
 #include <openrand/philox.h>
 #include <argparse/argparse.hpp>
 #include <cstdio>
 #include <cmath>
-#include <algorithm>
-#include <queue>
-#include <vector>
-#include <string>
-#include <sstream>
 
 using namespace std;
 
@@ -22,26 +18,18 @@ struct MyArgs : public argparse::Args {
     double &z                    = kwarg("z", "Fugacity (absolute activity) value");
     int &L                        = kwarg("L", "Lattice size (L x L)");
     int &M                        = kwarg("M", "Number of species");
-    string &lat                    = kwarg("lat", "Lattice Type");
 };
 
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -g
-    ./main --L 15 --M 15 --z 6 --lat square
+    g++ -std=c++17 -I./include src/wr_square.cpp -o wr_square -lstdc++fs -g
+    ./wr_square --L 40 --M 9 --z 0.5
 
 
 */
 
-// seeding random number generator (Philox)
-std::random_device rd;
-uint64_t seed = (static_cast<uint64_t>(rd()) << 32) | static_cast<uint64_t>(rd());
-openrand::Philox rng(seed, 0);
-
-int roundDownToNearestTen(double value) {
-    return std::floor(value / 10.0)*10.0;
-}
+const int r = 30;
 
 const char* colors[] = {
   "\033[0m",     // 0: reset (empty)
@@ -76,73 +64,56 @@ const char* colors[] = {
   "\033[1;90m"   // 29: bold gray
 };
 
+void printLattice(std::vector<std::vector<int>>& arr, int M) {
+    for (int i = 0; i < arr.size(); i++) {
+        for (int j = 0; j < arr[i].size(); j++) {
+        int s = arr[i][j];
+        // pick a visual for the box—
+        // here we use “■” (Unicode U+25A0), but you could use s itself or any symbol
+        const char* symbol = (s == 0 ? "  " : "■ ");
 
+        // choose color (fallback to reset if s out of range)
+        const char* color = (s >= 0 && s <= M ? colors[s] : colors[0]);
 
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
-    std::vector<int> occupancy_nodes;
-    for (int i = 0; i < nodes.size(); i++) {
-        if (nodes[i] == 0) {
-            occupancy_nodes.push_back(0);
+        std::cout << color << symbol << "\033[0m";
         }
-        else {
-            occupancy_nodes.push_back(1);
-        }
+        std::cout << "\n";
     }
-    
-    std::vector<bool> visited(adj.size(), false);
-    std::queue<int> q;
-
-    visited[0] = true;
-    q.push(0);
-    int count = 0;
-    int count_adj_diff = 0;
-
-    while (!q.empty()) {
-        int u = q.front(); q.pop();
-
-        bool tester = false;
-        for (int v : adj[u]) {
-            if (!visited[v]) {
-                visited[v] = true;
-                q.push(v);
-            }
-            if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                tester = true;
-            }
-        }
-
-        if (tester == false) {
-            count_adj_diff++;
-        }
-    }
-    return (double(count_adj_diff) / nodes.size());
+    std::cout << "\n";
 }
 
-double density(std::vector<int> nodes) {
-    int count = 0;
-    for (int n : nodes) {
-        if (n != 0) {
-            count++;
-        }
-    }
-    return double(count) / nodes.size();
+int roundDownToNearestTen(double value) {
+    return std::floor(value / 10.0)*10.0;
 }
 
-double demixedParameter(std::vector<int> nodes, int M) {
-    std::vector<int> number_species;
-    for (int i = 1; i <= M; i++) {
-        int count = 0;
-        for (int n : nodes) {
-            if (i == n) {
-                count++;
+double crystalParameter(std::vector<std::vector<int>> arr) {
+    int L = arr.size();
+    double total = 0;
+    for (int i = 1; i <= L; i++) {
+        for (int j = 1; j <= L; j++) {
+            int M = 0;
+            if (arr[i-1][j-1] != 0) {
+                M = 1;
+            }
+            total += (((2*M) - 1)*pow(-1, i+j)); 
+        } 
+    }
+    return (total/(L*L));
+}
+
+double density(std::vector<std::vector<int>> arr) {
+    int L = arr.size();
+    double total = 0;
+    for (int i = 0; i < L; i++) {
+        for (int j = 0; j < L; j++) {
+            if (arr[i][j] != 0) {
+                total += 1;
             }
         }
-        number_species.push_back(count);
     }
-    double max = *std::max_element(number_species.begin(), number_species.end());
-    return (max / nodes.size()) - (density(nodes) / M);
+    return total / (L * L);
 }
-
+   
 double mean(std::vector<double> arr) {
     double total = 0;
     for (double val : arr) {
@@ -161,6 +132,11 @@ double variance(std::vector<double> arr) {
 }
 
 int randInt(int x, int y) {
+    std::random_device rd;
+    uint64_t seed = (static_cast<uint64_t>(rd()) << 32)
+                  | static_cast<uint64_t>(rd());
+    openrand::Philox rng(seed, 0);
+    
     std::uniform_int_distribution<int> dist(x, y);
     int a = dist(rng);  // y ∼ Uniform{a,…,b}   
 
@@ -171,7 +147,9 @@ int mod(int a, int b) {
     return ((a % b) + b) % b;
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 int main(int argc, char* argv[]) {
     MyArgs args = argparse::parse<MyArgs>(argc, argv);
@@ -179,87 +157,67 @@ int main(int argc, char* argv[]) {
     int L = args.L;
     int M = args.M;
     double z = args.z;
-    string lat = args.lat;
+    
+    int sweeps = 40000; // will be modified during runtime when equilibrium point is reached
+    int sample_size = 80000;
 
+   
     if (L <= 0 || M <= 0 || z <= 0) {
         std::cerr << "Error: All parameters must be positive values." << std::endl;
         return 1;
     }
-    
-    int sweeps = 30000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 50000;
 
-
-    std::ofstream of_auto_cp("output_auto_cp.txt");
-    if (!of_auto_cp.is_open()) {
+    std::ofstream of_cp("output_cp.txt");
+    if (!of_cp.is_open()) {
         std::cerr << "Failed to open output_cp.txt\n";
         return 1;
     }
 
-
-    std::string gen_lat =
-    "python lattice_generation.py -L "
-        + std::to_string(L)
-        + " -l "
-        + lat;        
-
-    FILE* lattice_genFile = popen(gen_lat.c_str(), "r");
-    if (!lattice_genFile) {
-        std::cerr << "Failed to execute command" << std::endl;
+    /*
+    std::ofstream of_auto_cp("output_auto_cp.txt");
+    if (!of_auto_cp.is_open()) {
+        std::cerr << "Failed to open output_auto_cp.txt\n";
         return 1;
     }
-    pclose(lattice_genFile);
 
-    std::ifstream infile("temp_lattice_data.txt");
-    if (!infile) {
-        std::cerr << "Error opening file!" << std::endl;
+    std::ofstream of_auto_de("output_auto_de.txt");
+    if (!of_auto_de.is_open()) {
+        std::cerr << "Failed to open output_auto_de.txt\n";
         return 1;
     }
-    string line;
-    std::vector<std::vector<int>> lattice_adjacency_list;
-    while (std::getline(infile, line)) {
-        // turn “[”, “]”, “,” into plain spaces:
-        for (char& c : line) {
-            if (c=='[' || c==']' || c==',') c = ' ';
-        }
+    */
 
-        std::istringstream iss(line);
-        std::vector<int> adj_list_push_back;
 
-        int neighbor;
-        while (iss >> neighbor) {
-            adj_list_push_back.push_back(neighbor);
-        }
-
-        lattice_adjacency_list.push_back(adj_list_push_back);
-    }
-
-    std::vector<int> nodes(lattice_adjacency_list.size(), 0);
-
-    remove("temp_lattice_data.txt");
+    std::vector<std::vector<int>> lattice(L, std::vector<int>(L, 0));
+    
+    std::random_device rd;
+    uint64_t seed = (static_cast<uint64_t>(rd()) << 32)
+                  | static_cast<uint64_t>(rd());
+    openrand::Philox rng(seed, 0);
 
     std::bernoulli_distribution bernoulli_trial((M*z)/((M*z)+1));
-    
-    for (int i = 0; i < nodes.size(); i++) {
-        bool success = bernoulli_trial(rng);
-        if (success == false) { // if bernoulli probability outcomes false, make lattice(i,j) empty (0)
-            continue; // move to next iteration
-        }
-        else {
-            int k = randInt(1, M); // generate species (k = 1, 2, 3, ... , M)
-            bool conflict = false;
-            for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
-                int index = lattice_adjacency_list[i][j];
-                if (k != nodes[index] && nodes[index] != 0) {
-                    conflict = true;
-                    break;
-                }
-            }
-            if (conflict == false) {
-                nodes[i] = k;
+    for (int i = 0; i < L; i++) {
+        for (int j = 0; j < L; j++) {
+            bool success = bernoulli_trial(rng);
+            if (success == false) { // if bernoulli probability outcomes false, make lattice(i,j) empty (0)
+                lattice[i][j] = 0;
+                continue; // move to next iteration
             }
             else {
-                nodes[i] = 0;
+                int k = randInt(1, M); // generate species (k = 1, 2, 3, ... , M)
+                bool conflict = false;
+                if (lattice[mod(i-1, L)][j] != k && lattice[mod(i-1, L)][j] != 0) { // if lattice(i-1,j) ≠ k and empty, there is a conflict
+                    conflict = true;
+                }
+                if (lattice[i][mod(j-1, L)] != k && lattice[i][mod(j-1, L)] != 0) { // if lattice(i,j-1) ≠ k and empty, there is a conflict
+                    conflict = true;
+                }
+                if (conflict == false) { // if there is no conflict, use k as lattice(i,j)
+                    lattice[i][j] = k;
+                }
+                else {                   // if there IS a conflict, make lattice(i,j) empty (0)
+                    lattice[i][j] = 0;
+                }
             }
         }
     }
@@ -269,69 +227,67 @@ int main(int argc, char* argv[]) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     vector<double> crystal_parameters_test;
-    vector<double> crystal_parameters_sampling;
-
+    vector<double> crystal_parameters_eq;
+    vector<double> density_eq;
     double critical_variance = 0.0005; // critical variance for equilibrium point detection
     int block_size = 2500; // block size for variance calculation
-
-    unsigned int all_ones = ~0u;        // 0b1111 … 1111  (all bits = 1)
-    int MAX_INTEGER = static_cast<int>(all_ones >> 1);  // 0b0111 … 1111 ⇒ largest signed int
-    int critical_sweeps = MAX_INTEGER; // number of sweeps at which the critical point is reached, will be modified during runtime
+    int critical_sweeps = 1000000; // number of sweeps at which the critical point is reached, will be modified during runtime
 
     bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
-    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", lattice type: " << lat << std::endl;
+    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
 
     while (s <= sweeps) {
-        for (int m = 0; m < nodes.size(); m++) {
-            int i = randInt(0, nodes.size()-1);
+        for (int m = 0; m < (L*L); m++) {
+            int i = randInt(0, L-1);
+            int j = randInt(0, L-1);
             int k = randInt(0, M);
             
             bool conflict = false;
-            for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
-                int index = lattice_adjacency_list[i][j];
-                if (k != nodes[index] && nodes[index] != 0) {
-                    conflict = true;
-                    break;
+            if (lattice[mod(i-1, L)][j] != k && lattice[mod(i-1, L)][j] != 0) { // if lattice(i-1,j) ≠ k and empty, there is a conflict
+                conflict = true;
                 }
+            if (lattice[i][mod(j-1, L)] != k && lattice[i][mod(j-1, L)] != 0) { // if lattice(i,j-1) ≠ k and empty, there is a conflict
+                conflict = true;
             }
-
-            if (nodes[i] == 0) { // if current nodes(i) site is empty
+            if (lattice[mod(i+1, L)][j] != k && lattice[mod(i+1, L)][j] != 0) { // if lattice(i-1,j) ≠ k and empty, there is a conflict
+                conflict = true;
+            }
+            if (lattice[i][mod(j+1, L)] != k && lattice[i][mod(j+1, L)] != 0) { // if lattice(i,j-1) ≠ k and empty, there is a conflict
+                conflict = true;
+            }
+            if (lattice[i][j] == 0) { // if current lattice(i,j) site is empty
                 double insertion_test = z;
                 if (conflict == false && uni(rng) < insertion_test) { // rand(0,1) must be less than z
-                    nodes[i] = k; // accept move
+                    lattice[i][j] = k; // accept move
                 }
                 else {
                     continue; // if probability not reached then leave site unchanged
                 }
             }
-            bool allEmpty = true;
-            for (int v : lattice_adjacency_list[i]) {
-                if (nodes[v] != 0) {
-                    allEmpty = false;
-                    break;
-                }
-            }
-            if (nodes[i] != 0) { // if current lattice(i,j) site has a particle
+            if (lattice[i][j] != 0) { // if current lattice(i,j) site has a particle
                 if (k == 0) {
                     double removal_test = 1/z;
                     if (uni(rng) < removal_test) { // rand(0, 1) must be less than 1/z
-                        nodes[i] = k; // accept move
+                        lattice[i][j] = k; // accept move
                     }
                     else {
                         continue; // if probability not reached then leave site unchanged
                     }
                 }
                 else {
-                    if (allEmpty) { // replace particle if there is no resulting conflict
-                        nodes[i] = k;
+                    if (conflict == false) { // replace particle if there is no resulting conflict
+                        lattice[i][j] = k;
                     }
+                    
                 }
             }
         }
-    
-        double p = crystalParameter(nodes, lattice_adjacency_list);
-        
+                
+        double p = crystalParameter(lattice);
+
+        of_cp << p << std::endl;
+
         if (equilibrium_point_found == false) {
             if (s % block_size != 0) {
                 crystal_parameters_test.push_back(p);
@@ -355,21 +311,22 @@ int main(int argc, char* argv[]) {
                 crystal_parameters_test.clear(); // clear the test array for next variance calculation
             }
         }
-        
-        
         if (s >= critical_sweeps) {
             if (s < sweeps) {
-                crystal_parameters_sampling.push_back(p);
-                of_auto_cp << p << std::endl;                
+                crystal_parameters_eq.push_back(p);
+
+                /*
+                of_auto_cp << p << std::endl;
+                of_auto_de << d << std::endl;
+                */
             }
-        } 
-        
+        }   
         s++;
     }
 
     std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
 
-    
+    /*
     std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
 
     std::string command = "python script_auto.py"; 
@@ -385,7 +342,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
-
+    */
     
     /*
     int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
@@ -393,11 +350,11 @@ int main(int argc, char* argv[]) {
 
     double fourthOrderAvg = 0;
     double secondOrderAvg = 0;
-    for (int i = 1; i <= crystal_parameters_sampling.size(); i++) {
+    for (int i = 1; i <= crystal_parameters_eq.size(); i++) {
         if (i % decorrelationTime == 0) {
             counterForAverage++;
-            fourthOrderAvg += pow(crystal_parameters_sampling[i-1],4);
-            secondOrderAvg += pow(crystal_parameters_sampling[i-1],2);
+            fourthOrderAvg += pow(crystal_parameters_eq[i-1],4);
+            secondOrderAvg += pow(crystal_parameters_eq[i-1],2);
         }
     }
 
@@ -405,17 +362,25 @@ int main(int argc, char* argv[]) {
     secondOrderAvg /= counterForAverage;
     
     double cumulant = 1 - (fourthOrderAvg/(3*pow(secondOrderAvg, 2)));
-
-    // std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
-    std::cout << cumulant << std::endl;
-
+    std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
     */
 
+    // pclose(in);              // close the pipe to the Python script, use if you want to execute Python script
+
+    of_cp.close();
+
+    /*
+    of_auto_cp.close();
+    of_auto_de.close();
+    */
 
     
-    of_auto_cp.close();
-    // remove("output_auto_cp.txt");
-    
+    remove("output_cp.txt");
+
+    /*
+    remove("output_auto_cp.txt");
+    remove("output_auto_de.txt");
+    */
     
 
     return 0;

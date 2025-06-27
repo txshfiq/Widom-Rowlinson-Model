@@ -9,9 +9,13 @@ with open('output_cp.txt', 'r') as file:
 
 fig, ax = plt.subplots()    
 
-plt.ylim(-1, 1)  
+plt.ylim(0, 1)  
 
 ax.plot(values)
+
+plt.xlabel("Number of MC Sweeps")
+plt.ylabel(r"$\phi$")
+plt.title("Evolution of Order Parameter During Simulation")
 
 plt.savefig('my_plot.png')
 plt.show()

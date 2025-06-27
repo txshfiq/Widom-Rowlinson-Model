@@ -11,7 +11,7 @@ def fit_func(x, a):
 
 values = []
 
-with open('output_auto_de.txt', 'r') as file:
+with open('output_auto_cp.txt', 'r') as file:
     for line in file:
         values.append(float(line.strip()))
 
@@ -25,14 +25,14 @@ a_fit = constants[0][0]
 print(a_fit)
 
 ## commented out to save computation time, used to generate fit data
-'''
+
 fit = []
 for i in x:
     fit.append(fit_func(i, a_fit))
-'''
+
 
 ## plotting code (optional)
-'''
+
 fig, ax = plt.subplots()    
 
 plt.ylim(-1, 1)  
@@ -45,4 +45,3 @@ ax.set_title('Autocorrelation Function')
 
 plt.savefig('my_plot_auto.png')
 plt.show()
-'''
