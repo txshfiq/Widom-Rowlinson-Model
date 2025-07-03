@@ -1,18 +1,8 @@
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <openrand/philox.h>
 #include <argparse/argparse.hpp>
-#include <cstdio>
-#include <cmath>
-#include <algorithm>
-#include <queue>
-#include <vector>
-#include <string>
-#include <sstream>
+#include <bits/stdc++.h>
 
 using namespace std;
-
 
 // M = # of species
 // L = lattice size (L x L)
@@ -76,9 +66,83 @@ const char* colors[] = {
   "\033[1;90m"   // 29: bold gray
 };
 
+/*
 
+* Citation:
+* Wicaksono, J. K. (2025). Greedy vs Backtracking: A comparative study of
+* graph vertex coloring algorithms with C++ implementations. Makalah
+* IF1220 Matematika Diskrit, Institut Teknologi Bandung.
 
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
+*/
+
+using Graph = vector<vector<int>>;
+
+bool isSafe(int v, int c, const Graph &G, const vector<int> &color) {
+    for (int u : G[v]) {
+        if (color[u] == c)
+            return false;
+    }
+    return true;
+}
+
+bool colorVertex(int v, const Graph &G, vector<int> &color, int k, int n) {
+    if (v == n)
+        return true;
+
+    for (int c = 1; c <= k; ++c) {
+        if (isSafe(v, c, G, color)) {
+            color[v] = c;
+            if (colorVertex(v + 1, G, color, k, n)) {
+                return true;
+            }
+            color[v] = 0; // Backtrack
+        }
+    }
+    return false;
+}
+
+vector<int> backtrackGraphColoring(const Graph &G, int k, int n) {
+    vector<int> color(n, 0); // 0-based indexing
+
+    if (colorVertex(0, G, color, k, n)) {
+        return color;
+    } else {
+        return {}; // No valid coloring
+    }
+}
+
+bool isBipartite(const std::vector<std::vector<int>>& adj) {
+    int n = adj.size();
+    std::vector<int> color(n, -1);  // -1 = uncolored, 0 and 1 are the two colors
+
+    for (int start = 0; start < n; ++start) {
+        if (color[start] != -1) continue;  // already visited in another component
+
+        // BFS from this component
+        std::queue<int> q;
+        color[start] = 0;
+        q.push(start);
+
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int v : adj[u]) {
+                if (color[v] == -1) {
+                    // assign opposite color to neighbor
+                    color[v] = color[u] ^ 1;
+                    q.push(v);
+                }
+                else if (color[v] == color[u]) {
+                    // found same-color neighbor → not bipartite
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
         if (nodes[i] == 0) {
@@ -88,34 +152,86 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
             occupancy_nodes.push_back(1);
         }
     }
-    
+
     std::vector<bool> visited(adj.size(), false);
     std::queue<int> q;
 
     visited[0] = true;
     q.push(0);
-    int count = 0;
-    int count_adj_diff = 0;
+
+    double one = 0;
+    double two = 0;
+    double three = 0;
+
+    double one_total = 0;
+    double two_total = 0;
+    double three_total = 0;
 
     while (!q.empty()) {
         int u = q.front(); q.pop();
 
-        bool tester = false;
-        for (int v : adj[u]) {
-            if (!visited[v]) {
-                visited[v] = true;
-                q.push(v);
+        if (sublattice_locations[u] == 1) {
+            one_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
             }
-            if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                tester = true;
+
+            if (tester == false) {
+                one++;
             }
         }
+        if (sublattice_locations[u] == 2) {
+            two_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
+            }
 
-        if (tester == false) {
-            count_adj_diff++;
+            if (tester == false) {
+                two++;
+            }
+        }
+        if (sublattice_locations[u] == 3) {
+            three_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
+            }
+
+            if (tester == false) {
+                three++;
+            }
         }
     }
-    return (double(count_adj_diff) / nodes.size());
+
+    double val_one = one / one_total;
+    double val_two = two / two_total;
+
+    if (three_total == 0) {
+        return std::max(val_one, val_two);
+    }
+    double val_three = three / three_total;
+
+    return std::max(val_one, std::max(val_two, val_three));
 }
 
 double density(std::vector<int> nodes) {
@@ -167,10 +283,6 @@ int randInt(int x, int y) {
     return a;
 }
 
-int mod(int a, int b) {
-    return ((a % b) + b) % b;
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
@@ -180,22 +292,30 @@ int main(int argc, char* argv[]) {
     int M = args.M;
     double z = args.z;
     string lat = args.lat;
+    
+    int sweeps = 10000; // will be modified during runtime when equilibrium point is reached
+    int sample_size = 100000;
+
+    int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
     if (L <= 0 || M <= 0 || z <= 0) {
         std::cerr << "Error: All parameters must be positive values." << std::endl;
         return 1;
     }
-    
-    int sweeps = 30000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 50000;
 
-
-    std::ofstream of_auto_cp("output_auto_cp.txt");
-    if (!of_auto_cp.is_open()) {
+    std::ofstream of_cp("output_cp.txt");
+    if (!of_cp.is_open()) {
         std::cerr << "Failed to open output_cp.txt\n";
         return 1;
     }
 
+    std::ofstream of_auto_cp("output_auto_cp.txt");
+    if (!of_auto_cp.is_open()) {
+        std::cerr << "Failed to open output_auto_cp.txt\n";
+        return 1;
+    }
+    
+    std::vector<std::vector<int>> lattice_adjacency_list;
 
     std::string gen_lat =
     "python lattice_generation.py -L "
@@ -203,20 +323,22 @@ int main(int argc, char* argv[]) {
         + " -l "
         + lat;        
 
-    FILE* lattice_genFile = popen(gen_lat.c_str(), "r");
-    if (!lattice_genFile) {
+    FILE* generator = popen(gen_lat.c_str(), "r");
+    if (!generator) {
         std::cerr << "Failed to execute command" << std::endl;
         return 1;
     }
-    pclose(lattice_genFile);
+    pclose(generator);
 
     std::ifstream infile("temp_lattice_data.txt");
+
     if (!infile) {
         std::cerr << "Error opening file!" << std::endl;
         return 1;
     }
+
     string line;
-    std::vector<std::vector<int>> lattice_adjacency_list;
+
     while (std::getline(infile, line)) {
         // turn “[”, “]”, “,” into plain spaces:
         for (char& c : line) {
@@ -234,7 +356,15 @@ int main(int argc, char* argv[]) {
         lattice_adjacency_list.push_back(adj_list_push_back);
     }
 
+
+    if (isBipartite(lattice_adjacency_list)) {
+        k = 2;
+    } else {
+        k = 3;
+    }
+
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
+    std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
 
     remove("temp_lattice_data.txt");
 
@@ -269,18 +399,15 @@ int main(int argc, char* argv[]) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
     vector<double> crystal_parameters_test;
+    vector<double> crystal_parameters_eq;
     vector<double> crystal_parameters_sampling;
 
     double critical_variance = 0.0005; // critical variance for equilibrium point detection
     int block_size = 2500; // block size for variance calculation
 
-    unsigned int all_ones = ~0u;        // 0b1111 … 1111  (all bits = 1)
-    int MAX_INTEGER = static_cast<int>(all_ones >> 1);  // 0b0111 … 1111 ⇒ largest signed int
-    int critical_sweeps = MAX_INTEGER; // number of sweeps at which the critical point is reached, will be modified during runtime
-
     bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
-    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", lattice type: " << lat << std::endl;
+    // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
 
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
@@ -329,23 +456,22 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-    
-        double p = crystalParameter(nodes, lattice_adjacency_list);
+        
+        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        of_cp << param << std::endl;
         
         if (equilibrium_point_found == false) {
             if (s % block_size != 0) {
-                crystal_parameters_test.push_back(p);
+                crystal_parameters_test.push_back(param);
             }
             else {
                 if (variance(crystal_parameters_test) < critical_variance) {
                     std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
-                if (s >= sweeps) {
+                else if (s >= sweeps) {
                     std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
@@ -355,14 +481,11 @@ int main(int argc, char* argv[]) {
                 crystal_parameters_test.clear(); // clear the test array for next variance calculation
             }
         }
-        
-        
-        if (s >= critical_sweeps) {
-            if (s < sweeps) {
-                crystal_parameters_sampling.push_back(p);
-                of_auto_cp << p << std::endl;                
-            }
-        } 
+    
+        if (s < sweeps && equilibrium_point_found == true) {
+            crystal_parameters_sampling.push_back(param);
+            of_auto_cp << param << std::endl;
+        }
         
         s++;
     }
@@ -387,7 +510,7 @@ int main(int argc, char* argv[]) {
     std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
 
     
-    /*
+    
     int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
     int counterForAverage = 0;
 
@@ -408,8 +531,6 @@ int main(int argc, char* argv[]) {
 
     // std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
     std::cout << cumulant << std::endl;
-
-    */
 
 
     

@@ -1,13 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import curve_fit
 
 def acf(x, length=20):
     return np.array([1]+[np.corrcoef(x[:-i], x[i:])[0,1]  \
         for i in range(1, length)])
-
-def fit_func(x, a):
-    return np.exp(-x / a)
 
 values = []
 
@@ -15,21 +11,16 @@ with open('output_auto_cp.txt', 'r') as file:
     for line in file:
         values.append(float(line.strip()))
 
-y = acf(values, length=3500)
+y = acf(values, length=1000)
+log_y = np.log(y)
+
 x = np.arange(len(y)) + 1
 
-constants = curve_fit(fit_func, x, y)
+slope, intercept = np.polyfit(x, log_y, 1)
 
-a_fit = constants[0][0]
+a = -1.0 / slope
 
-print(a_fit)
-
-## commented out to save computation time, used to generate fit data
-
-fit = []
-for i in x:
-    fit.append(fit_func(i, a_fit))
-
+print(a)
 
 ## plotting code (optional)
 

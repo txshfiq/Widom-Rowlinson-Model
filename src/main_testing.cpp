@@ -1,15 +1,7 @@
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <openrand/philox.h>
 #include <argparse/argparse.hpp>
-#include <cstdio>
-#include <cmath>
-#include <algorithm>
-#include <queue>
-#include <vector>
-#include <string>
-#include <sstream>
+#include <bits/stdc++.h>
+#include <stdexcept>
 
 using namespace std;
 
@@ -18,18 +10,24 @@ using namespace std;
 // L = lattice size (L x L)
 // z = fugacity (absolute activity) -> constant value, same chemical potential throughout (grand-canonical ensemble)
 
+
+// Note for archimedean lattices:
+// Triangular: L must be a multiple of 3
+
+
 struct MyArgs : public argparse::Args {
     double &z                    = kwarg("z", "Fugacity (absolute activity) value");
     int &L                        = kwarg("L", "Lattice size (L x L)");
     int &M                        = kwarg("M", "Number of species");
     string &lat                    = kwarg("lat", "Lattice Type");
+    int &sweeps                = kwarg("sweeps", "Number of sweeps (default: 2)");
 };
 
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -I./include src/main_testing.cpp -o main -lstdc++fs -g
-    ./main --L 15 --M 15 --z 6 --lat square
+    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main -lstdc++fs -g
+    ./main --L 15 --M 15 --z 6 --lat hexagonal
 
 
 */
@@ -43,6 +41,155 @@ int roundDownToNearestTen(double value) {
     return std::floor(value / 10.0)*10.0;
 }
 
+
+const char* colors[] = {
+  "\033[0m",     // 0: reset (empty)
+  "\033[31m",    // 1: red
+  "\033[32m",    // 2: green
+  "\033[33m",    // 3: yellow
+  "\033[34m",    // 4: blue
+  "\033[35m",    // 5: magenta
+  "\033[36m",    // 6: cyan
+  "\033[91m",    // 7: bright red
+  "\033[92m",    // 8: bright green
+  "\033[93m",    // 9: bright yellow
+  "\033[94m",    // 10: bright blue
+  "\033[95m",    // 11: bright magenta
+  "\033[96m",    // 12: bright cyan
+  "\033[90m",    // 13: gray
+  "\033[97m",    // 14: white
+  "\033[30m",    // 15: black
+  "\033[1;31m",  // 16: bold red
+  "\033[1;32m",  // 17: bold green
+  "\033[1;33m",  // 18: bold yellow
+  "\033[1;34m",  // 19: bold blue
+  "\033[1;35m",  // 20: bold magenta
+  "\033[1;36m",  // 21: bold cyan
+  "\033[1;91m",  // 22: bold bright red
+  "\033[1;92m",  // 23: bold bright green
+  "\033[1;93m",  // 24: bold bright yellow
+  "\033[1;94m",  // 25: bold bright blue
+  "\033[1;95m",  // 26: bold bright magenta
+  "\033[1;96m",  // 27: bold bright cyan
+  "\033[1;97m",  // 28: bold white
+  "\033[1;90m"   // 29: bold gray
+};
+
+
+
+/////////////
+
+/*
+
+* Citation:
+* Wicaksono, J. K. (2025). Greedy vs Backtracking: A comparative study of
+* graph vertex coloring algorithms with C++ implementations. Makalah
+* IF1220 Matematika Diskrit, Institut Teknologi Bandung.
+
+*/
+
+using Graph = vector<vector<int>>;
+
+bool isSafe(int v, int c, const Graph &G, const vector<int> &color) {
+    for (int u : G[v]) {
+        if (color[u] == c)
+            return false;
+    }
+    return true;
+}
+
+void printLattice(std::vector<std::vector<int>>& arr, int M) {
+    for (int i = 0; i < arr.size(); i++) {
+        for (int j = 0; j < arr[i].size(); j++) {
+        int s = arr[i][j];
+        // pick a visual for the box—
+        // here we use “■” (Unicode U+25A0), but you could use s itself or any symbol
+        const char* symbol = (s == 0 ? "  " : "■ ");
+
+        // choose color (fallback to reset if s out of range)
+        const char* color = (s >= 0 && s <= M ? colors[s] : colors[0]);
+
+        std::cout << color << symbol << "\033[0m";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "\n";
+}
+
+bool colorVertex(int v, const Graph &G, vector<int> &color, int k, int n) {
+    if (v == n)
+        return true;
+
+    for (int c = 1; c <= k; ++c) {
+        if (isSafe(v, c, G, color)) {
+            color[v] = c;
+            if (colorVertex(v + 1, G, color, k, n)) {
+                return true;
+            }
+            color[v] = 0; // Backtrack
+        }
+    }
+    return false;
+}
+
+vector<int> backtrackGraphColoring(const Graph &G, int k, int n) {
+    vector<int> color(n, 0); // 0-based indexing
+
+    if (colorVertex(0, G, color, k, n)) {
+        return color;
+    } else {
+        return {}; // No valid coloring
+    }
+}
+
+/////////////////////
+
+
+
+
+
+
+
+
+void printVector(const std::vector<int>& vec) {
+    for (const auto& v : vec) {
+        std::cout << v << " ";
+    }
+    std::cout << std::endl;
+}
+
+bool isBipartite(const std::vector<std::vector<int>>& adj) {
+    int n = adj.size();
+    std::vector<int> color(n, -1);  // -1 = uncolored, 0 and 1 are the two colors
+
+    for (int start = 0; start < n; ++start) {
+        if (color[start] != -1) continue;  // already visited in another component
+
+        // BFS from this component
+        std::queue<int> q;
+        color[start] = 0;
+        q.push(start);
+
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int v : adj[u]) {
+                if (color[v] == -1) {
+                    // assign opposite color to neighbor
+                    color[v] = color[u] ^ 1;
+                    q.push(v);
+                }
+                else if (color[v] == color[u]) {
+                    // found same-color neighbor → not bipartite
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+/*
 double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
@@ -81,6 +228,99 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
         }
     }
     return (double(count_adj_diff) / nodes.size());
+}
+*/
+
+double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
+    std::vector<int> occupancy_nodes;
+    for (int i = 0; i < nodes.size(); i++) {
+        if (nodes[i] == 0) {
+            occupancy_nodes.push_back(0);
+        }
+        else {
+            occupancy_nodes.push_back(1);
+        }
+    }
+
+    std::vector<bool> visited(adj.size(), false);
+    std::queue<int> q;
+
+    visited[0] = true;
+    q.push(0);
+
+    double one = 0;
+    double two = 0;
+    double three = 0;
+
+    double one_total = 0;
+    double two_total = 0;
+    double three_total = 0;
+
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+
+        if (sublattice_locations[u] == 1) {
+            one_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
+            }
+
+            if (tester == false) {
+                one++;
+            }
+        }
+        if (sublattice_locations[u] == 2) {
+            two_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
+            }
+
+            if (tester == false) {
+                two++;
+            }
+        }
+        if (sublattice_locations[u] == 3) {
+            three_total++;
+            bool tester = false;
+            for (int v : adj[u]) {
+                if (!visited[v]) {
+                    visited[v] = true;
+                    q.push(v);
+                }
+                if (occupancy_nodes[u] == occupancy_nodes[v]) {
+                    tester = true;
+                }
+            }
+
+            if (tester == false) {
+                three++;
+            }
+        }
+    }
+
+    double val_one = one / one_total;
+    double val_two = two / two_total;
+
+    if (three_total == 0) {
+        return std::max(val_one, val_two);
+    }
+    double val_three = three / three_total;
+
+    return std::max(val_one, std::max(val_two, val_three));
 }
 
 double density(std::vector<int> nodes) {
@@ -132,9 +372,71 @@ int randInt(int x, int y) {
     return a;
 }
 
-int mod(int a, int b) {
-    return ((a % b) + b) % b;
+int randIntWithoutVal(int x, int y, int val) {
+    std::uniform_int_distribution<int> dist(x, y);
+    int a = dist(rng);  // y ∼ Uniform{a,…,b}   
+
+    while (a == val) {
+        a = dist(rng);
+    }
+    return a;
 }
+
+int findRoot(int i, std::vector<int> &ptr) {
+    int r = i;
+    int s = i;
+    while (ptr[r] >= 0) {
+        ptr[s] = ptr[r];
+        s = r;
+        r = ptr[r];
+    }
+    return r;
+}
+
+
+// from before:
+std::vector<std::vector<int>>
+adjListToGrid(const std::vector<std::vector<int>>& adjList) {
+    int N = adjList.size();
+    int L = static_cast<int>(std::sqrt(N));
+    if (L*L != N)
+        throw std::invalid_argument("adjList size is not a perfect square");
+    std::vector<std::vector<int>> grid(L, std::vector<int>(L));
+    for (int idx = 0; idx < N; ++idx) {
+        int r = idx / L;
+        int c = idx % L;
+        grid[r][c] = idx;
+    }
+    return grid;
+}
+
+// new helper: map your node‐values onto an L×L grid
+template<typename T>
+std::vector<std::vector<T>>
+nodeValuesToGrid(const std::vector<T>& nodeVals,
+                 const std::vector<std::vector<int>>& adjList)
+{
+    int N = adjList.size();
+    int L = static_cast<int>(std::sqrt(N));
+    if (L*L != N)
+        throw std::invalid_argument("adjList size is not a perfect square");
+
+    // get the 1D‐index → (r,c) map
+    auto grid = adjListToGrid(adjList);
+
+    // now build your L×L value‐grid
+    std::vector<std::vector<T>> valueGrid(L, std::vector<T>(L));
+    for (int r = 0; r < L; ++r) {
+        for (int c = 0; c < L; ++c) {
+            int idx = grid[r][c];        // original node index
+            valueGrid[r][c] = nodeVals[idx];
+        }
+    }
+    return valueGrid;
+}
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -145,11 +447,13 @@ int main(int argc, char* argv[]) {
     int M = args.M;
     double z = args.z;
     string lat = args.lat;
+    int SWEEPS = args.sweeps;
     
-    int sweeps = 50000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = SWEEPS; // will be modified during runtime when equilibrium point is reached
     int sample_size = 100000;
 
-   
+    int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
+
     if (L <= 0 || M <= 0 || z <= 0) {
         std::cerr << "Error: All parameters must be positive values." << std::endl;
         return 1;
@@ -160,8 +464,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open output_cp.txt\n";
         return 1;
     }
-
-
 
     std::ofstream node_coloring("node_color_data.txt");
     if (!node_coloring.is_open()) {
@@ -211,7 +513,22 @@ int main(int argc, char* argv[]) {
         lattice_adjacency_list.push_back(adj_list_push_back);
     }
 
+
+    if (isBipartite(lattice_adjacency_list)) {
+        k = 2;
+    } else {
+        k = 3;
+    }
+
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
+    int EMPTY = -1 * lattice_adjacency_list.size() - 1; // mark empty sites with this value
+    std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
+    std::cout << isBipartite(lattice_adjacency_list) << std::endl;
+
+
+    printVector(sublattice_locations);
+
+
 
     remove("temp_lattice_data.txt");
 
@@ -244,23 +561,85 @@ int main(int argc, char* argv[]) {
     int s = 1; // start at sweep 1
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
+    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", Lattice Type: " << lat << std::endl;
 
-    vector<double> crystal_parameters_test;
-    vector<double> crystal_parameters_eq;
 
-    double critical_variance = 0.0005; // critical variance for equilibrium point detection
-    int block_size = 2500; // block size for variance calculation
-    int critical_sweeps = 1000000; // number of sweeps at which the critical point is reached, will be modified during runtime
+    std::bernoulli_distribution bernoulli_trial_cluster(0.01); // for cluster flipping
 
-    bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
+    vector<int> ptr;
 
-    // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
+    for (int n = 0; n < nodes.size(); n++) {
+        if (nodes[n] == 0) {
+            ptr.push_back(EMPTY); // empty site
+        }
+        else {
+            ptr.push_back(-1); // occupied site
+        }
+    }
 
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1);
             int k = randInt(0, M);
-            
+
+            bool doClusterFlipping = false;
+
+            if (nodes[i] != 0) {
+                for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
+                    int index = lattice_adjacency_list[i][j];
+                    if (nodes[index] == nodes[i]) {
+                        doClusterFlipping = true;
+                        break;
+                    }
+                }
+            }
+
+            if (doClusterFlipping == true) {
+                bool prob_cluster_flipping = bernoulli_trial_cluster(rng); // decide whether to do cluster flipping or single site modification
+                
+                int r1 = i;
+                int s1 = i;
+
+                for (int j = 0; j < lattice_adjacency_list[s1].size(); j++) {
+                    int s2 = lattice_adjacency_list[s1][j];
+                    if (ptr[s2] != EMPTY && nodes[s2] == nodes[s1]) { // if neighbor is occupied and has the same species
+                        int r1 = findRoot(s1, ptr);
+                        int r2 = findRoot(s2, ptr);
+                        if (r2 != r1) {
+                            // Weighted union: attach smaller under larger
+                            if (ptr[r1] > ptr[r2]) {
+                                ptr[r2] += ptr[r1];  // combine sizes (both negative)
+                                ptr[r1] = r2;       // make r2 the new root
+                                r1 = r2;             // update current root
+                            } else {
+                                ptr[r1] += ptr[r2];  // combine sizes under r1
+                                ptr[r2] = r1;       // link r2 to r1
+                            }
+                        }
+                    }
+                }
+                
+                if (prob_cluster_flipping == true) {
+                    // std::cout << colors[2] << "Cluster flipping at site: " << i << "\033[0m" << std::endl;
+
+                    int col = randIntWithoutVal(1, M, nodes[i]); 
+                    for (int v = 0; v < nodes.size(); v++) { 
+                        if (findRoot(v, ptr) == findRoot(i, ptr)) { // if v is in the same cluster as i
+                            nodes[v] = col;
+                        }
+                    }
+                    continue;
+                }
+                else {
+                    // std::cout << colors[2] << "Single deletion at site from cluster check: " << i << "\033[0m" << std::endl;
+
+                    nodes[i] = 0;
+                    continue;
+                }
+            }
+
+            // std::cout << colors[3] << "Single site modification at site: " << i << "\033[0m" << std::endl;
+
             bool conflict = false;
             for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
                 int index = lattice_adjacency_list[i][j];
@@ -303,58 +682,22 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-    
-        double param = crystalParameter(nodes, lattice_adjacency_list);
-
+        
+        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
         of_cp << param << std::endl;
 
-        /*
-        if (equilibrium_point_found == false) {
-            if (s % block_size != 0) {
-                crystal_parameters_test.push_back(p);
-            }
-            else {
-                if (variance(crystal_parameters_test) < critical_variance) {
-                    // std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                if (s >= sweeps) {
-                    // std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                else {
-                    // std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
-                }
-                crystal_parameters_test.clear(); // clear the test array for next variance calculation
-            }
-        }
-        
-        
-        if (s >= critical_sweeps) {
-            if (s < sweeps) {
-                crystal_parameters_eq.push_back(p);
-            }
-        }
-        */ 
+        auto gridVals = nodeValuesToGrid(nodes, lattice_adjacency_list);
+
+        printLattice(gridVals, M);
         
         s++;
     }
-    
 
-    
     for (int k = 0; k < nodes.size(); k++) {
         node_coloring << nodes[k] << std::endl;
     }
-
-    node_coloring.close();
     
-
-
-    std::string disp_lat ="python lattice_display.py";    
+    std::string disp_lat ="python lattice_display.py";
 
     FILE* oth = popen(disp_lat.c_str(), "r");
     if (!oth) {
@@ -362,9 +705,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     pclose(oth);
+    
 
     of_cp.close();
-    
+    node_coloring.close();
 
     return 0;
 }

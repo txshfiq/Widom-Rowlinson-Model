@@ -188,7 +188,7 @@ def gen_snub_lattice(extent, arg):
 def gen_lattice(lattice, extent, arg):
     if lattice == "square":
         return gen_square_lattice(extent, arg)
-    elif lattice == "triangular":
+    elif lattice == "triangular":                    
         return gen_triangular_lattice(extent, arg)
     elif lattice == "hexagonal":
         return gen_hexagonal_lattice(extent, arg)

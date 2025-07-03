@@ -11,7 +11,7 @@ fig, ax = plt.subplots()
 
 plt.ylim(0, 1)  
 
-ax.plot(values)
+ax.plot(values, color='black')
 
 plt.xlabel("Number of MC Sweeps")
 plt.ylabel(r"$\phi$")

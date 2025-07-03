@@ -282,88 +282,13 @@ int main(int argc, char* argv[]) {
                     
                 }
             }
+
+            
+
         }
                 
         double p = crystalParameter(lattice);
-
         of_cp << p << std::endl;
-
-        if (equilibrium_point_found == false) {
-            if (s % block_size != 0) {
-                crystal_parameters_test.push_back(p);
-            }
-            else {
-                if (variance(crystal_parameters_test) < critical_variance) {
-                    std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                if (s >= sweeps) {
-                    std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    critical_sweeps = s; // set critical sweeps to current sweep
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                else {
-                    std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
-                }
-                crystal_parameters_test.clear(); // clear the test array for next variance calculation
-            }
-        }
-        if (s >= critical_sweeps) {
-            if (s < sweeps) {
-                crystal_parameters_eq.push_back(p);
-
-                /*
-                of_auto_cp << p << std::endl;
-                of_auto_de << d << std::endl;
-                */
-            }
-        }   
-        s++;
-    }
-
-    std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
-
-    /*
-    std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
-
-    std::string command = "python script_auto.py"; 
-    FILE* in = popen(command.c_str(), "r");
-    if (!in) {
-        std::cerr << "Failed to execute command" << std::endl;
-        return 1;
-    }
-
-    double value;
-    while (fscanf(in, "%lf", &value) == 1) {
-        std::cout << value << std::endl;
-    }
-
-    std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
-    */
-    
-    /*
-    int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
-    int counterForAverage = 0;
-
-    double fourthOrderAvg = 0;
-    double secondOrderAvg = 0;
-    for (int i = 1; i <= crystal_parameters_eq.size(); i++) {
-        if (i % decorrelationTime == 0) {
-            counterForAverage++;
-            fourthOrderAvg += pow(crystal_parameters_eq[i-1],4);
-            secondOrderAvg += pow(crystal_parameters_eq[i-1],2);
-        }
-    }
-
-    fourthOrderAvg /= counterForAverage;
-    secondOrderAvg /= counterForAverage;
-    
-    double cumulant = 1 - (fourthOrderAvg/(3*pow(secondOrderAvg, 2)));
-    std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
-    */
 
     // pclose(in);              // close the pipe to the Python script, use if you want to execute Python script
 

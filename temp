@@ -1,0 +1,35 @@
+
+int r1 = i;
+int s1 = i;
+
+for (int j = 0; j < lattice_adjacency_list[s1].size(); j++) {
+    int s2 = lattice_adjacency_list[s1][j];
+    if (ptr[s2] != EMPTY && nodes[s1] == nodes[s2]) { // if neighbor is occupied and has the same species
+        int r2 = findRoot(s2, ptr);
+        if (r2 != r1) {
+            // Weighted union: attach smaller under larger
+            if (ptr[r1] > ptr[r2]) {
+                ptr[r2] += ptr[r1];  // combine sizes (both negative)
+                ptr[r1] = r2;       // make r2 the new root
+                r1 = r2;             // update current root
+            } else {
+                ptr[r1] += ptr[r2];  // combine sizes under r1
+                ptr[r2] = r1;       // link r2 to r1
+            }
+        }
+    }
+}
+
+for (int v = 0; v < nodes.size(); v++) { // flipping cluster colors
+    if (findRoot(v, ptr) == r1) {
+        int current_col = nodes[v];
+        bool gen = true;
+        while (gen) {
+            int col = randInt(1, M);
+            if (col != current_col) {
+                nodes[v] = col;
+                gen = false;
+            }
+        }
+    }
+}
