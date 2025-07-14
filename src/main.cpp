@@ -333,7 +333,7 @@ int main(int argc, char* argv[]) {
     
     std::vector<std::vector<int>> lattice_adjacency_list;
 
-    std::string python_executable = "/home/tashfiq/micromamba/bin/python"; // <-- PASTE YOUR PATH HERE
+    std::string python_executable = "/home/tashfiq/micromamba/bin/python"; 
     std::string gen_lat =
         python_executable
         + " lattice_generation.py -L "
