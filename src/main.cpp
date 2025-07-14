@@ -18,13 +18,14 @@ struct MyArgs : public argparse::Args {
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -g
+    g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -O3
     ./main --L 15 --M 15 --z 6 --lat square
 
 
 */
 
 // seeding random number generator (Philox)
+
 std::random_device rd;
 uint64_t seed = (static_cast<uint64_t>(rd()) << 32) | static_cast<uint64_t>(rd());
 openrand::Philox rng(seed, 0);
@@ -65,6 +66,8 @@ const char* colors[] = {
   "\033[1;97m",  // 28: bold white
   "\033[1;90m"   // 29: bold gray
 };
+
+/////////////
 
 /*
 
@@ -142,6 +145,32 @@ bool isBipartite(const std::vector<std::vector<int>>& adj) {
     return true;
 }
 
+std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<int>> adj, int start) {
+    std::vector<bool> visited(nodes.size(), false);
+    std::queue<int> q;
+
+    std::vector<int> cluster_vertices;
+
+    visited[start] = true;
+    q.push(start);
+    cluster_vertices.push_back(start);
+
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+
+        bool tester = false;
+        for (int v : adj[u]) {
+            if (!visited[v] && nodes[u] == nodes[v]) {
+                cluster_vertices.push_back(v);
+                visited[v] = true;
+                q.push(v);
+            }
+        }
+    }
+
+    return cluster_vertices;
+}
+
 double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
@@ -153,12 +182,6 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
         }
     }
 
-    std::vector<bool> visited(adj.size(), false);
-    std::queue<int> q;
-
-    visited[0] = true;
-    q.push(0);
-
     double one = 0;
     double two = 0;
     double three = 0;
@@ -167,22 +190,15 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
     double two_total = 0;
     double three_total = 0;
 
-    while (!q.empty()) {
-        int u = q.front(); q.pop();
-
+    for (int u = 0; u < adj.size(); u++) {
         if (sublattice_locations[u] == 1) {
             one_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 one++;
             }
@@ -191,15 +207,10 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
             two_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 two++;
             }
@@ -208,15 +219,10 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
             three_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 three++;
             }
@@ -283,6 +289,16 @@ int randInt(int x, int y) {
     return a;
 }
 
+int randIntWithoutVal(int x, int y, int val) {
+    std::uniform_int_distribution<int> dist(x, y);
+    int a = dist(rng);  // y ∼ Uniform{a,…,b}   
+
+    while (a == val) {
+        a = dist(rng);
+    }
+    return a;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
@@ -317,11 +333,13 @@ int main(int argc, char* argv[]) {
     
     std::vector<std::vector<int>> lattice_adjacency_list;
 
+    std::string python_executable = "/home/tashfiq/micromamba/bin/python"; // <-- PASTE YOUR PATH HERE
     std::string gen_lat =
-    "python lattice_generation.py -L "
+        python_executable
+        + " lattice_generation.py -L "
         + std::to_string(L)
         + " -l "
-        + lat;        
+        + lat;     
 
     FILE* generator = popen(gen_lat.c_str(), "r");
     if (!generator) {
@@ -407,12 +425,49 @@ int main(int argc, char* argv[]) {
 
     bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
+    double p_remove = 1.0/(M * std::min(1.0/z, 1.0));
+    std::bernoulli_distribution bernoulli_trial_cluster(p_remove); // for cluster flipping
+
+
     // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
 
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1);
             int k = randInt(0, M);
+
+            int x = randInt(0, nodes.size()-1);
+            
+            bool isCluster = false;
+
+            if (nodes[x] != 0) {    // if randomly selected site has something in it
+                for (int j = 0; j < lattice_adjacency_list[x].size(); j++) {
+                    int index = lattice_adjacency_list[x][j];
+                    if (nodes[x] == nodes[index]) {
+                        isCluster = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isCluster == true) { 
+                bool prob_cluster_flipping = bernoulli_trial_cluster(rng); // decide whether to do cluster flipping or single site modification
+                
+                if (prob_cluster_flipping == true) {
+                    std::vector<int> cluster = clusterFinder(nodes, lattice_adjacency_list, x);
+
+                    int col = randIntWithoutVal(1, M, nodes[x]);
+                    for (int v : cluster) { 
+                        nodes[v] = col;
+                    }
+                    continue;
+                }
+                else {
+                    nodes[x] = 0;
+                    continue;
+                }
+                
+            }
             
             bool conflict = false;
             for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
@@ -455,6 +510,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+
         }
         
         double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
@@ -466,17 +522,17 @@ int main(int argc, char* argv[]) {
             }
             else {
                 if (variance(crystal_parameters_test) < critical_variance) {
-                    std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    // std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
                 else if (s >= sweeps) {
-                    std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    // std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
                     equilibrium_point_found = true; // set equilibrium point found to true
                     sweeps = s + sample_size;
                 }
                 else {
-                    std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
+                    // std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
                 }
                 crystal_parameters_test.clear(); // clear the test array for next variance calculation
             }
@@ -490,10 +546,10 @@ int main(int argc, char* argv[]) {
         s++;
     }
 
-    std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
+    // std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
 
     
-    std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
+    // std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
 
     std::string command = "python script_auto.py"; 
     FILE* in = popen(command.c_str(), "r");
@@ -504,10 +560,10 @@ int main(int argc, char* argv[]) {
 
     double value;
     while (fscanf(in, "%lf", &value) == 1) {
-        std::cout << value << std::endl;
+        // value is being read
     }
 
-    std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
+    // std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
 
     
     
@@ -535,7 +591,8 @@ int main(int argc, char* argv[]) {
 
     
     of_auto_cp.close();
-    // remove("output_auto_cp.txt");
+    remove("output_auto_cp.txt");
+    remove("output_cp.txt");
     
     
 

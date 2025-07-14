@@ -1,2 +1,2 @@
-22
-square
+20
+hexagonal

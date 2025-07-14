@@ -26,7 +26,7 @@ struct MyArgs : public argparse::Args {
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main -lstdc++fs -g
+    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main -lstdc++fs
     ./main --L 15 --M 15 --z 6 --lat hexagonal
 
 
@@ -231,6 +231,31 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
 }
 */
 
+std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<int>> adj, int start) {
+    std::vector<bool> visited(nodes.size(), false);
+    std::queue<int> q;
+
+    std::vector<int> cluster_vertices;
+
+    visited[start] = true;
+    q.push(start);
+    cluster_vertices.push_back(start);
+
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+
+        for (int v : adj[u]) {
+            if (!visited[v] && nodes[u] == nodes[v]) {
+                cluster_vertices.push_back(v);
+                visited[v] = true;
+                q.push(v);
+            }
+        }
+    }
+
+    return cluster_vertices;
+}
+
 double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
@@ -242,12 +267,6 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
         }
     }
 
-    std::vector<bool> visited(adj.size(), false);
-    std::queue<int> q;
-
-    visited[0] = true;
-    q.push(0);
-
     double one = 0;
     double two = 0;
     double three = 0;
@@ -256,22 +275,15 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
     double two_total = 0;
     double three_total = 0;
 
-    while (!q.empty()) {
-        int u = q.front(); q.pop();
-
+    for (int u = 0; u < adj.size(); u++) {
         if (sublattice_locations[u] == 1) {
             one_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 one++;
             }
@@ -280,15 +292,10 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
             two_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 two++;
             }
@@ -297,15 +304,10 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
             three_total++;
             bool tester = false;
             for (int v : adj[u]) {
-                if (!visited[v]) {
-                    visited[v] = true;
-                    q.push(v);
-                }
                 if (occupancy_nodes[u] == occupancy_nodes[v]) {
                     tester = true;
                 }
             }
-
             if (tester == false) {
                 three++;
             }
@@ -563,8 +565,8 @@ int main(int argc, char* argv[]) {
     std::uniform_real_distribution<double> uni(0.0, 1.0);
     std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", Lattice Type: " << lat << std::endl;
 
-
-    std::bernoulli_distribution bernoulli_trial_cluster(0.01); // for cluster flipping
+    double p_remove = 1.0/(M * std::min(1.0/z, 1.0));
+    std::bernoulli_distribution bernoulli_trial_cluster(p_remove); // for cluster flipping
 
     vector<int> ptr;
 
@@ -576,68 +578,48 @@ int main(int argc, char* argv[]) {
             ptr.push_back(-1); // occupied site
         }
     }
-
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1);
             int k = randInt(0, M);
 
-            bool doClusterFlipping = false;
+            int x = randInt(0, nodes.size()-1);
+            
+            bool isCluster = false;
 
-            if (nodes[i] != 0) {
-                for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
-                    int index = lattice_adjacency_list[i][j];
-                    if (nodes[index] == nodes[i]) {
-                        doClusterFlipping = true;
+            if (nodes[x] != 0) {    // if randomly selected site has something in it
+                for (int j = 0; j < lattice_adjacency_list[x].size(); j++) {
+                    int index = lattice_adjacency_list[x][j];
+                    if (nodes[x] == nodes[index]) {
+                        isCluster = true;
                         break;
                     }
                 }
             }
 
-            if (doClusterFlipping == true) {
+            if (isCluster == true) { 
                 bool prob_cluster_flipping = bernoulli_trial_cluster(rng); // decide whether to do cluster flipping or single site modification
                 
-                int r1 = i;
-                int s1 = i;
-
-                for (int j = 0; j < lattice_adjacency_list[s1].size(); j++) {
-                    int s2 = lattice_adjacency_list[s1][j];
-                    if (ptr[s2] != EMPTY && nodes[s2] == nodes[s1]) { // if neighbor is occupied and has the same species
-                        int r1 = findRoot(s1, ptr);
-                        int r2 = findRoot(s2, ptr);
-                        if (r2 != r1) {
-                            // Weighted union: attach smaller under larger
-                            if (ptr[r1] > ptr[r2]) {
-                                ptr[r2] += ptr[r1];  // combine sizes (both negative)
-                                ptr[r1] = r2;       // make r2 the new root
-                                r1 = r2;             // update current root
-                            } else {
-                                ptr[r1] += ptr[r2];  // combine sizes under r1
-                                ptr[r2] = r1;       // link r2 to r1
-                            }
-                        }
-                    }
-                }
-                
                 if (prob_cluster_flipping == true) {
-                    // std::cout << colors[2] << "Cluster flipping at site: " << i << "\033[0m" << std::endl;
+                    std::vector<int> cluster = clusterFinder(nodes, lattice_adjacency_list, x);
 
-                    int col = randIntWithoutVal(1, M, nodes[i]); 
-                    for (int v = 0; v < nodes.size(); v++) { 
-                        if (findRoot(v, ptr) == findRoot(i, ptr)) { // if v is in the same cluster as i
-                            nodes[v] = col;
-                        }
+                    int col = randIntWithoutVal(1, M, nodes[x]);
+                    for (int v : cluster) { 
+                        nodes[v] = col;
                     }
                     continue;
                 }
                 else {
-                    // std::cout << colors[2] << "Single deletion at site from cluster check: " << i << "\033[0m" << std::endl;
-
-                    nodes[i] = 0;
+                    nodes[x] = 0;
                     continue;
                 }
-            }
 
+            
+                
+                
+            }
+            
+            
             // std::cout << colors[3] << "Single site modification at site: " << i << "\033[0m" << std::endl;
 
             bool conflict = false;
@@ -681,15 +663,12 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+
         }
         
         double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
         of_cp << param << std::endl;
-
-        auto gridVals = nodeValuesToGrid(nodes, lattice_adjacency_list);
-
-        printLattice(gridVals, M);
-        
+                
         s++;
     }
 

@@ -16,21 +16,34 @@ def compile_wr(source: str, output: str):
     subprocess.run(cmd, check=True)
 '''
 
-def run_wr(executable: str, L: int, M: int, z: float) -> str:
+def run_wr(executable: str, L: int, M: int, z: float, lat: str) -> str:
     cmd = [
         f'./{executable}',
         '--L', str(L),
         '--M', str(M),
         '--z', str(z),
+        '--lat', lat
     ]
-    print("Simulation parameters: L =", L, "M =", M, "z =", z)
-    completed = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    return completed.stdout
+    print(f"Simulation parameters: L = {L}, M = {M}, z = {z}, lat = {lat}")
+    
+    # --- MODIFICATION START ---
+    try:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return completed.stdout
+    
+    except subprocess.CalledProcessError as e:
+        print("--- C++ EXECUTABLE FAILED ---")
+        print(f"Exit Code: {e.returncode}")
+        print(f"Stdout from C++:\n{e.stdout}")
+        print(f"Stderr from C++:\n{e.stderr}") 
+        print("-------------------------------")
+        raise 
+    # --- MODIFICATION END ---
 
 '''
 def run_simulation(*job):
@@ -67,6 +80,13 @@ if __name__ == '__main__':
         required=True,
         help="Size of lattice (L x L)"
     )
+    parser.add_argument(
+        "--str1", "-lat",
+        type=str,
+        required=True,
+        help="Type of Lattice"
+    )
+
     parser.add_argument('--action', required=True)
     parser.add_argument('directories', nargs='+')
 
@@ -82,8 +102,9 @@ if __name__ == '__main__':
     L = args.num3
     M = args.num2
     z = args.num1
+    lat = args.str1
 
-    output = run_wr(BIN, L, M, z)
+    output = run_wr(BIN, L, M, z, lat)
 
     for job in project:
         if job.sp.L == L and job.sp.M == M and job.sp.z == z:

@@ -1,0 +1,2 @@
+slurmstepd: error: *** JOB 28419043 ON gl3203 CANCELLED AT 2025-07-14T15:22:29 ***
+/var/spool/slurmd.spool/job28419043/slurm_script: line 1: 3594158 Terminated              python project.py -z 5.0 -M 2 -L 10 -lat hexagonal --action run_simulation 7faf1ba5ea4ada9dab08a8f9034b44e7

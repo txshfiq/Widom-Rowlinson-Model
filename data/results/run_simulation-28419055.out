@@ -1,0 +1,23 @@
+Simulation parameters: L = 25, M = 2, z = 2.9, lat = hexagonal
+--- C++ EXECUTABLE FAILED ---
+Exit Code: 1
+Stdout from C++:
+
+Stderr from C++:
+Error opening file!
+
+-------------------------------
+Traceback (most recent call last):
+  File "/home/tashfiq/wr_lattice/project.py", line 107, in <module>
+    output = run_wr(BIN, L, M, z, lat)
+  File "/home/tashfiq/wr_lattice/project.py", line 31, in run_wr
+    completed = subprocess.run(
+        cmd,
+    ...<2 lines>...
+        check=True
+    )
+  File "/home/tashfiq/micromamba/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['./main', '--L', '25', '--M', '2', '--z', '2.9', '--lat', 'hexagonal']' returned non-zero exit status 1.
+[ERROR row::action] Error executing command.

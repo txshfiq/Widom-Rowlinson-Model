@@ -3,16 +3,16 @@ path = "/home/tashfiq/wr_lattice/data/workspace/"
 value_file = "signac_statepoint.json"
 
 [default.action.submit_options.greatlakes]
-account = "sglotzer9"
+account = "sglotzer0"
 output_file_path = "/home/tashfiq/wr_lattice/data/results"
 
 [[action]]
 name = "run_simulation"
 products = ["counts.txt.in_progress"]
-command = "python project.py -z {/z} -M {/M} -L {/L} --action run_simulation {directory}"
+command = "python project.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action run_simulation {directory}"
 
 [action.resources]
-walltime.per_directory = "10:00:00"
+walltime.per_directory = "23:00:00"
 
 [action.group]
 split_by_sort_key = true
