@@ -1,6 +1,6 @@
 from netket.graph import Lattice
 import networkx as nx
-import arch_lattices
+import utils.arch_lattices as arch_lattices
 import os
 import plotly.graph_objects as go
 import numpy as np

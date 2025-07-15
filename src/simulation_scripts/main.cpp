@@ -1,38 +1,31 @@
 #include <openrand/philox.h>
 #include <argparse/argparse.hpp>
 #include <bits/stdc++.h>
-#include <stdexcept>
 
 using namespace std;
-
 
 // M = # of species
 // L = lattice size (L x L)
 // z = fugacity (absolute activity) -> constant value, same chemical potential throughout (grand-canonical ensemble)
 
-
-// Note for archimedean lattices:
-// Triangular: L must be a multiple of 3
-
-
 struct MyArgs : public argparse::Args {
     double &z                    = kwarg("z", "Fugacity (absolute activity) value");
-    int &L                        = kwarg("L", "Lattice size (L x L)");
-    int &M                        = kwarg("M", "Number of species");
-    string &lat                    = kwarg("lat", "Lattice Type");
-    int &sweeps                = kwarg("sweeps", "Number of sweeps (default: 2)");
+    int &L                       = kwarg("L", "Lattice size (L x L)");
+    int &M                       = kwarg("M", "Number of species");
+    string &lat                  = kwarg("lat", "Lattice Type");
 };
 
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main -lstdc++fs
-    ./main --L 15 --M 15 --z 6 --lat hexagonal
+    g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -O3
+    ./main --L 15 --M 15 --z 6 --lat square
 
 
 */
 
 // seeding random number generator (Philox)
+
 std::random_device rd;
 uint64_t seed = (static_cast<uint64_t>(rd()) << 32) | static_cast<uint64_t>(rd());
 openrand::Philox rng(seed, 0);
@@ -40,7 +33,6 @@ openrand::Philox rng(seed, 0);
 int roundDownToNearestTen(double value) {
     return std::floor(value / 10.0)*10.0;
 }
-
 
 const char* colors[] = {
   "\033[0m",     // 0: reset (empty)
@@ -75,9 +67,7 @@ const char* colors[] = {
   "\033[1;90m"   // 29: bold gray
 };
 
-
-
-/////////////
+///////////// Color Graph
 
 /*
 
@@ -96,24 +86,6 @@ bool isSafe(int v, int c, const Graph &G, const vector<int> &color) {
             return false;
     }
     return true;
-}
-
-void printLattice(std::vector<std::vector<int>>& arr, int M) {
-    for (int i = 0; i < arr.size(); i++) {
-        for (int j = 0; j < arr[i].size(); j++) {
-        int s = arr[i][j];
-        // pick a visual for the box—
-        // here we use “■” (Unicode U+25A0), but you could use s itself or any symbol
-        const char* symbol = (s == 0 ? "  " : "■ ");
-
-        // choose color (fallback to reset if s out of range)
-        const char* color = (s >= 0 && s <= M ? colors[s] : colors[0]);
-
-        std::cout << color << symbol << "\033[0m";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "\n";
 }
 
 bool colorVertex(int v, const Graph &G, vector<int> &color, int k, int n) {
@@ -140,22 +112,6 @@ vector<int> backtrackGraphColoring(const Graph &G, int k, int n) {
     } else {
         return {}; // No valid coloring
     }
-}
-
-/////////////////////
-
-
-
-
-
-
-
-
-void printVector(const std::vector<int>& vec) {
-    for (const auto& v : vec) {
-        std::cout << v << " ";
-    }
-    std::cout << std::endl;
 }
 
 bool isBipartite(const std::vector<std::vector<int>>& adj) {
@@ -189,52 +145,9 @@ bool isBipartite(const std::vector<std::vector<int>>& adj) {
     return true;
 }
 
-/*
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
-    std::vector<int> occupancy_nodes;
-    for (int i = 0; i < nodes.size(); i++) {
-        if (nodes[i] == 0) {
-            occupancy_nodes.push_back(0);
-        }
-        else {
-            occupancy_nodes.push_back(1);
-        }
-    }
-    
-    std::vector<bool> visited(adj.size(), false);
-    std::queue<int> q;
-
-    visited[0] = true;
-    q.push(0);
-    int count = 0;
-    int count_adj_diff = 0;
-
-    while (!q.empty()) {
-        int u = q.front(); q.pop();
-
-        bool tester = false;
-        for (int v : adj[u]) {
-            if (!visited[v]) {
-                visited[v] = true;
-                q.push(v);
-            }
-            if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                tester = true;
-            }
-        }
-
-        if (tester == false) {
-            count_adj_diff++;
-        }
-    }
-    return (double(count_adj_diff) / nodes.size());
-}
-*/
-
 std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<int>> adj, int start) {
     std::vector<bool> visited(nodes.size(), false);
     std::queue<int> q;
-
     std::vector<int> cluster_vertices;
 
     visited[start] = true;
@@ -244,6 +157,7 @@ std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<i
     while (!q.empty()) {
         int u = q.front(); q.pop();
 
+        bool tester = false;
         for (int v : adj[u]) {
             if (!visited[v] && nodes[u] == nodes[v]) {
                 cluster_vertices.push_back(v);
@@ -384,62 +298,6 @@ int randIntWithoutVal(int x, int y, int val) {
     return a;
 }
 
-int findRoot(int i, std::vector<int> &ptr) {
-    int r = i;
-    int s = i;
-    while (ptr[r] >= 0) {
-        ptr[s] = ptr[r];
-        s = r;
-        r = ptr[r];
-    }
-    return r;
-}
-
-
-// from before:
-std::vector<std::vector<int>>
-adjListToGrid(const std::vector<std::vector<int>>& adjList) {
-    int N = adjList.size();
-    int L = static_cast<int>(std::sqrt(N));
-    if (L*L != N)
-        throw std::invalid_argument("adjList size is not a perfect square");
-    std::vector<std::vector<int>> grid(L, std::vector<int>(L));
-    for (int idx = 0; idx < N; ++idx) {
-        int r = idx / L;
-        int c = idx % L;
-        grid[r][c] = idx;
-    }
-    return grid;
-}
-
-// new helper: map your node‐values onto an L×L grid
-template<typename T>
-std::vector<std::vector<T>>
-nodeValuesToGrid(const std::vector<T>& nodeVals,
-                 const std::vector<std::vector<int>>& adjList)
-{
-    int N = adjList.size();
-    int L = static_cast<int>(std::sqrt(N));
-    if (L*L != N)
-        throw std::invalid_argument("adjList size is not a perfect square");
-
-    // get the 1D‐index → (r,c) map
-    auto grid = adjListToGrid(adjList);
-
-    // now build your L×L value‐grid
-    std::vector<std::vector<T>> valueGrid(L, std::vector<T>(L));
-    for (int r = 0; r < L; ++r) {
-        for (int c = 0; c < L; ++c) {
-            int idx = grid[r][c];        // original node index
-            valueGrid[r][c] = nodeVals[idx];
-        }
-    }
-    return valueGrid;
-}
-
-
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
@@ -449,9 +307,8 @@ int main(int argc, char* argv[]) {
     int M = args.M;
     double z = args.z;
     string lat = args.lat;
-    int SWEEPS = args.sweeps;
     
-    int sweeps = SWEEPS; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 10000; // will be modified during runtime when equilibrium point is reached
     int sample_size = 100000;
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
@@ -467,27 +324,30 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::ofstream node_coloring("node_color_data.txt");
-    if (!node_coloring.is_open()) {
-        std::cerr << "Failed to open node_color_data.txt\n";
+    std::ofstream of_auto_cp("output_auto_cp.txt");
+    if (!of_auto_cp.is_open()) {
+        std::cerr << "Failed to open output_auto_cp.txt\n";
         return 1;
     }
     
-
     std::vector<std::vector<int>> lattice_adjacency_list;
 
+    std::string python_executable = "~/miniconda3/bin/python"; 
     std::string gen_lat =
-    "python lattice_generation.py -L "
+        python_executable
+        + "./src/lattice_utils/lattice_generation.py -L "
         + std::to_string(L)
         + " -l "
-        + lat;        
+        + lat;     
 
-    FILE* in = popen(gen_lat.c_str(), "r");
-    if (!in) {
+    std::cout << gen_lat << std::endl;
+
+    FILE* generator = popen(gen_lat.c_str(), "r");
+    if (!generator) {
         std::cerr << "Failed to execute command" << std::endl;
         return 1;
     }
-    pclose(in);
+    pclose(generator);
 
     std::ifstream infile("temp_lattice_data.txt");
 
@@ -523,14 +383,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
-    int EMPTY = -1 * lattice_adjacency_list.size() - 1; // mark empty sites with this value
     std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
-    std::cout << isBipartite(lattice_adjacency_list) << std::endl;
-
-
-    printVector(sublattice_locations);
-
-
 
     remove("temp_lattice_data.txt");
 
@@ -563,21 +416,22 @@ int main(int argc, char* argv[]) {
     int s = 1; // start at sweep 1
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
-    std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << ", Lattice Type: " << lat << std::endl;
+
+    vector<double> crystal_parameters_test;
+    vector<double> crystal_parameters_eq;
+    vector<double> crystal_parameters_sampling;
+
+    double critical_variance = 0.0005; // critical variance for equilibrium point detection
+    int block_size = 2500; // block size for variance calculation
+
+    bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
     double p_remove = 1.0/(M * std::min(1.0/z, 1.0));
     std::bernoulli_distribution bernoulli_trial_cluster(p_remove); // for cluster flipping
 
-    vector<int> ptr;
 
-    for (int n = 0; n < nodes.size(); n++) {
-        if (nodes[n] == 0) {
-            ptr.push_back(EMPTY); // empty site
-        }
-        else {
-            ptr.push_back(-1); // occupied site
-        }
-    }
+    // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
+
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1);
@@ -613,15 +467,9 @@ int main(int argc, char* argv[]) {
                     nodes[x] = 0;
                     continue;
                 }
-
-            
-                
                 
             }
             
-            
-            // std::cout << colors[3] << "Single site modification at site: " << i << "\033[0m" << std::endl;
-
             bool conflict = false;
             for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
                 int index = lattice_adjacency_list[i][j];
@@ -668,26 +516,84 @@ int main(int argc, char* argv[]) {
         
         double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
         of_cp << param << std::endl;
-                
+        
+        if (equilibrium_point_found == false) {
+            if (s % block_size != 0) {
+                crystal_parameters_test.push_back(param);
+            }
+            else {
+                if (variance(crystal_parameters_test) < critical_variance) {
+                    // std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    equilibrium_point_found = true; // set equilibrium point found to true
+                    sweeps = s + sample_size;
+                }
+                else if (s >= sweeps) {
+                    // std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
+                    equilibrium_point_found = true; // set equilibrium point found to true
+                    sweeps = s + sample_size;
+                }
+                else {
+                    // std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
+                }
+                crystal_parameters_test.clear(); // clear the test array for next variance calculation
+            }
+        }
+    
+        if (s < sweeps && equilibrium_point_found == true) {
+            crystal_parameters_sampling.push_back(param);
+            of_auto_cp << param << std::endl;
+        }
+        
         s++;
     }
 
-    for (int k = 0; k < nodes.size(); k++) {
-        node_coloring << nodes[k] << std::endl;
-    }
-    
-    std::string disp_lat ="python lattice_display.py";
+    // std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
 
-    FILE* oth = popen(disp_lat.c_str(), "r");
-    if (!oth) {
+    
+    // std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
+
+    std::string command = "python script_auto.py"; 
+    FILE* in = popen(command.c_str(), "r");
+    if (!in) {
         std::cerr << "Failed to execute command" << std::endl;
         return 1;
     }
-    pclose(oth);
+
+    double value;
+    while (fscanf(in, "%lf", &value) == 1) {
+        // value is being read
+    }
+
+    // std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
+
     
+    
+    int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
+    int counterForAverage = 0;
 
-    of_cp.close();
-    node_coloring.close();
+    double fourthOrderAvg = 0;
+    double secondOrderAvg = 0;
+    for (int i = 1; i <= crystal_parameters_sampling.size(); i++) {
+        if (i % decorrelationTime == 0) {
+            counterForAverage++;
+            fourthOrderAvg += pow(crystal_parameters_sampling[i-1],4);
+            secondOrderAvg += pow(crystal_parameters_sampling[i-1],2);
+        }
+    }
 
+    fourthOrderAvg /= counterForAverage;
+    secondOrderAvg /= counterForAverage;
+    
+    double cumulant = 1 - (fourthOrderAvg/(3*pow(secondOrderAvg, 2)));
+
+    // std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
+    std::cout << cumulant << std::endl;
+
+
+    
+    of_auto_cp.close();
+    remove("output_auto_cp.txt");
+    remove("output_cp.txt");
+    
     return 0;
 }
