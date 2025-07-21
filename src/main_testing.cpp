@@ -2,6 +2,10 @@
 #include <argparse/argparse.hpp>
 #include <bits/stdc++.h>
 #include <stdexcept>
+#include <complex>
+#include <algorithm>
+#include <unistd.h>
+#include <termios.h>
 
 using namespace std;
 
@@ -15,6 +19,48 @@ using namespace std;
 // Triangular: L must be a multiple of 3
 
 
+// Helper class for non-blocking keyboard input on Unix-like systems
+class NonBlockingTerminal {
+public:
+    NonBlockingTerminal() {
+        // Get current terminal settings
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        // Disable canonical mode (line buffering) and echo
+        newt.c_lflag &= ~(ICANON | ECHO);
+        // Apply the new settings
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    }
+
+    ~NonBlockingTerminal() {
+        // Restore the old terminal settings
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    }
+
+    // Check if a key has been pressed
+    int kbhit() {
+        struct timeval tv = { 0L, 0L };
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
+        return select(1, &fds, NULL, NULL, &tv);
+    }
+
+    // Read the character without blocking
+    int getch() {
+        int r;
+        unsigned char c;
+        if ((r = read(STDIN_FILENO, &c, sizeof(c))) < 0) {
+            return r;
+        } else {
+            return c;
+        }
+    }
+
+private:
+    struct termios oldt, newt;
+};
+
 struct MyArgs : public argparse::Args {
     double &z                    = kwarg("z", "Fugacity (absolute activity) value");
     int &L                        = kwarg("L", "Lattice size (L x L)");
@@ -26,8 +72,8 @@ struct MyArgs : public argparse::Args {
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
 
-    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main -lstdc++fs
-    ./main --L 15 --M 15 --z 6 --lat hexagonal
+    g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main_testing -lstdc++fs
+    ./main_testing --L 36 --M 2 --z 3.9 --lat bathroom --sweeps 10000
 
 
 */
@@ -189,66 +235,27 @@ bool isBipartite(const std::vector<std::vector<int>>& adj) {
     return true;
 }
 
-/*
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj) {
-    std::vector<int> occupancy_nodes;
-    for (int i = 0; i < nodes.size(); i++) {
-        if (nodes[i] == 0) {
-            occupancy_nodes.push_back(0);
-        }
-        else {
-            occupancy_nodes.push_back(1);
-        }
-    }
-    
-    std::vector<bool> visited(adj.size(), false);
-    std::queue<int> q;
+std::vector<int> clusterFinder(const std::vector<int>& nodes, const std::vector<std::vector<int>>& adj, int start) {
 
-    visited[0] = true;
-    q.push(0);
-    int count = 0;
-    int count_adj_diff = 0;
-
-    while (!q.empty()) {
-        int u = q.front(); q.pop();
-
-        bool tester = false;
-        for (int v : adj[u]) {
-            if (!visited[v]) {
-                visited[v] = true;
-                q.push(v);
-            }
-            if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                tester = true;
-            }
-        }
-
-        if (tester == false) {
-            count_adj_diff++;
-        }
-    }
-    return (double(count_adj_diff) / nodes.size());
-}
-*/
-
-std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<int>> adj, int start) {
     std::vector<bool> visited(nodes.size(), false);
     std::queue<int> q;
-
     std::vector<int> cluster_vertices;
+
+    const int target_value = nodes[start];
 
     visited[start] = true;
     q.push(start);
     cluster_vertices.push_back(start);
 
     while (!q.empty()) {
-        int u = q.front(); q.pop();
+        int u = q.front();
+        q.pop();
 
         for (int v : adj[u]) {
-            if (!visited[v] && nodes[u] == nodes[v]) {
-                cluster_vertices.push_back(v);
+            if (!visited[v] && nodes[v] == target_value) {
                 visited[v] = true;
                 q.push(v);
+                cluster_vertices.push_back(v);
             }
         }
     }
@@ -336,6 +343,18 @@ double density(std::vector<int> nodes) {
 }
 
 double demixedParameter(std::vector<int> nodes, int M) {
+    std::complex<double> total = std::complex<double>(0, 0);
+    for (int i = 1; i <= M; i++) {
+        double angle = 2 * M_PI * (i - 1)/M;
+        std::complex<double> euler = std::exp(std::complex<double>(0, -1 * angle));
+        auto N_i = std::count(nodes.begin(), nodes.end(), i);
+        double m_i = static_cast<double>(N_i) / (density(nodes) * nodes.size());
+        total += (m_i * euler);
+    }
+    return std::abs(total);
+}
+
+double demixedParameter2(std::vector<int> nodes, int M) {
     std::vector<int> number_species;
     for (int i = 1; i <= M; i++) {
         int count = 0;
@@ -383,18 +402,6 @@ int randIntWithoutVal(int x, int y, int val) {
     }
     return a;
 }
-
-int findRoot(int i, std::vector<int> &ptr) {
-    int r = i;
-    int s = i;
-    while (ptr[r] >= 0) {
-        ptr[s] = ptr[r];
-        s = r;
-        r = ptr[r];
-    }
-    return r;
-}
-
 
 // from before:
 std::vector<std::vector<int>>
@@ -466,6 +473,11 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open output_cp.txt\n";
         return 1;
     }
+    std::ofstream of_cp_2("output_cp_extra.txt");
+    if (!of_cp.is_open()) {
+        std::cerr << "Failed to open output_cp_extra.txt\n";
+        return 1;
+    }
 
     std::ofstream node_coloring("node_color_data.txt");
     if (!node_coloring.is_open()) {
@@ -476,26 +488,36 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::vector<int>> lattice_adjacency_list;
 
-    std::string gen_lat =
-    "python lattice_generation.py -L "
-        + std::to_string(L)
-        + " -l "
-        + lat;        
+    std::string adj_data_file = "adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
+    std::ifstream file(adj_data_file);
 
-    FILE* in = popen(gen_lat.c_str(), "r");
-    if (!in) {
-        std::cerr << "Failed to execute command" << std::endl;
-        return 1;
+    if (!file) {
+        std::cout << "Generating lattice adjacency list" << std::endl;
+        std::string gen_lat =
+            "python lattice_generation.py -L "
+            + std::to_string(L)
+            + " -l "
+            + lat;     
+
+        FILE* generator = popen(gen_lat.c_str(), "r");
+        if (!generator) {
+            std::cerr << "Failed to execute lattice_generation.py" << std::endl;
+            return 1;
+        }
+        pclose(generator);
+        std::cout << "Generating DONE!" << std::endl;
     }
-    pclose(in);
 
-    std::ifstream infile("temp_lattice_data.txt");
+    std::cout << "Accessing lattice adjacency list" << std::endl;
+
+    std::ifstream infile(adj_data_file.c_str());
 
     if (!infile) {
-        std::cerr << "Error opening file!" << std::endl;
+        std::cerr << "Error opening " << adj_data_file << std::endl;
         return 1;
     }
 
+    std::cout << "Accessing done!" << std::endl;
     string line;
 
     while (std::getline(infile, line)) {
@@ -514,25 +536,31 @@ int main(int argc, char* argv[]) {
 
         lattice_adjacency_list.push_back(adj_list_push_back);
     }
-
-
+    
     if (isBipartite(lattice_adjacency_list)) {
         k = 2;
     } else {
         k = 3;
     }
 
-    std::vector<int> nodes(lattice_adjacency_list.size(), 0);
-    int EMPTY = -1 * lattice_adjacency_list.size() - 1; // mark empty sites with this value
     std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
-    std::cout << isBipartite(lattice_adjacency_list) << std::endl;
+    /*
+    if (isBipartite(lattice_adjacency_list)) {
+        std::cout << "bipartite" << std::endl;
+    } else {
+        if (sublattice_locations.size() == 0) {
+            std::cerr << "likely 4-colorable, NOT GOOD" << std::endl;
+            exit(1);
+        }
+        else {
+            std::cout << "tripartite" << std::endl;
+        }
+    }
 
 
     printVector(sublattice_locations);
-
-
-
-    remove("temp_lattice_data.txt");
+    */
+    std::vector<int> nodes(lattice_adjacency_list.size(), 0);
 
     std::bernoulli_distribution bernoulli_trial((M*z)/((M*z)+1));
     
@@ -568,21 +596,23 @@ int main(int argc, char* argv[]) {
     double p_remove = 1.0/(M * std::min(1.0/z, 1.0));
     std::bernoulli_distribution bernoulli_trial_cluster(p_remove); // for cluster flipping
 
-    vector<int> ptr;
+    NonBlockingTerminal nbt;
+    bool keyPressed = false;
 
-    for (int n = 0; n < nodes.size(); n++) {
-        if (nodes[n] == 0) {
-            ptr.push_back(EMPTY); // empty site
+    while (s <= sweeps && !keyPressed) {
+
+        if (nbt.kbhit()) {
+            cout << "\nKey pressed. Breaking loop and finalizing..." << std::endl;
+            nbt.getch(); // consume the character from the input buffer
+            keyPressed = true;
+            continue; // exit the current sweep and let the while condition terminate
         }
-        else {
-            ptr.push_back(-1); // occupied site
-        }
-    }
-    while (s <= sweeps) {
+
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1);
             int k = randInt(0, M);
 
+            
             int x = randInt(0, nodes.size()-1);
             
             bool isCluster = false;
@@ -613,10 +643,6 @@ int main(int argc, char* argv[]) {
                     nodes[x] = 0;
                     continue;
                 }
-
-            
-                
-                
             }
             
             
@@ -666,8 +692,13 @@ int main(int argc, char* argv[]) {
 
         }
         
-        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double param = demixedParameter(nodes, M);
+        double param2 = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+
+    
         of_cp << param << std::endl;
+        of_cp_2 << param2 << std::endl;
                 
         s++;
     }
@@ -676,7 +707,11 @@ int main(int argc, char* argv[]) {
         node_coloring << nodes[k] << std::endl;
     }
     
-    std::string disp_lat ="python lattice_display.py";
+    std::string disp_lat =
+    "python lattice_display.py -L "
+        + std::to_string(L)
+        + " -l "
+        + lat;
 
     FILE* oth = popen(disp_lat.c_str(), "r");
     if (!oth) {
@@ -687,6 +722,7 @@ int main(int argc, char* argv[]) {
     
 
     of_cp.close();
+    of_cp_2.close();
     node_coloring.close();
 
     return 0;

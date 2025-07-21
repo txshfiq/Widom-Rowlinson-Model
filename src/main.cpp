@@ -1,6 +1,9 @@
 #include <openrand/philox.h>
 #include <argparse/argparse.hpp>
 #include <bits/stdc++.h>
+#include <complex>
+#include <algorithm>
+
 
 using namespace std;
 
@@ -17,7 +20,6 @@ struct MyArgs : public argparse::Args {
 
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
-
     g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -O3
     ./main --L 15 --M 15 --z 6 --lat square
 
@@ -33,39 +35,6 @@ openrand::Philox rng(seed, 0);
 int roundDownToNearestTen(double value) {
     return std::floor(value / 10.0)*10.0;
 }
-
-const char* colors[] = {
-  "\033[0m",     // 0: reset (empty)
-  "\033[31m",    // 1: red
-  "\033[32m",    // 2: green
-  "\033[33m",    // 3: yellow
-  "\033[34m",    // 4: blue
-  "\033[35m",    // 5: magenta
-  "\033[36m",    // 6: cyan
-  "\033[91m",    // 7: bright red
-  "\033[92m",    // 8: bright green
-  "\033[93m",    // 9: bright yellow
-  "\033[94m",    // 10: bright blue
-  "\033[95m",    // 11: bright magenta
-  "\033[96m",    // 12: bright cyan
-  "\033[90m",    // 13: gray
-  "\033[97m",    // 14: white
-  "\033[30m",    // 15: black
-  "\033[1;31m",  // 16: bold red
-  "\033[1;32m",  // 17: bold green
-  "\033[1;33m",  // 18: bold yellow
-  "\033[1;34m",  // 19: bold blue
-  "\033[1;35m",  // 20: bold magenta
-  "\033[1;36m",  // 21: bold cyan
-  "\033[1;91m",  // 22: bold bright red
-  "\033[1;92m",  // 23: bold bright green
-  "\033[1;93m",  // 24: bold bright yellow
-  "\033[1;94m",  // 25: bold bright blue
-  "\033[1;95m",  // 26: bold bright magenta
-  "\033[1;96m",  // 27: bold bright cyan
-  "\033[1;97m",  // 28: bold white
-  "\033[1;90m"   // 29: bold gray
-};
 
 /////////////
 
@@ -145,25 +114,27 @@ bool isBipartite(const std::vector<std::vector<int>>& adj) {
     return true;
 }
 
-std::vector<int> clusterFinder(std::vector<int> nodes, std::vector<std::vector<int>> adj, int start) {
+std::vector<int> clusterFinder(const std::vector<int>& nodes, const std::vector<std::vector<int>>& adj, int start) {
+
     std::vector<bool> visited(nodes.size(), false);
     std::queue<int> q;
-
     std::vector<int> cluster_vertices;
+
+    const int target_value = nodes[start];
 
     visited[start] = true;
     q.push(start);
     cluster_vertices.push_back(start);
 
     while (!q.empty()) {
-        int u = q.front(); q.pop();
+        int u = q.front();
+        q.pop();
 
-        bool tester = false;
         for (int v : adj[u]) {
-            if (!visited[v] && nodes[u] == nodes[v]) {
-                cluster_vertices.push_back(v);
+            if (!visited[v] && nodes[v] == target_value) {
                 visited[v] = true;
                 q.push(v);
+                cluster_vertices.push_back(v);
             }
         }
     }
@@ -251,18 +222,15 @@ double density(std::vector<int> nodes) {
 }
 
 double demixedParameter(std::vector<int> nodes, int M) {
-    std::vector<int> number_species;
+   std::complex<double> total = std::complex<double>(0, 0);
     for (int i = 1; i <= M; i++) {
-        int count = 0;
-        for (int n : nodes) {
-            if (i == n) {
-                count++;
-            }
-        }
-        number_species.push_back(count);
+        double angle = 2 * M_PI * (i - 1)/M;
+        std::complex<double> euler = std::exp(std::complex<double>(0, -1 * angle));
+        auto N_i = std::count(nodes.begin(), nodes.end(), i);
+        double m_i = static_cast<double>(N_i) / (density(nodes) * nodes.size());
+        total += (m_i * euler);
     }
-    double max = *std::max_element(number_species.begin(), number_species.end());
-    return (max / nodes.size()) - (density(nodes) / M);
+    return std::abs(total);
 }
 
 double mean(std::vector<double> arr) {
@@ -310,7 +278,7 @@ int main(int argc, char* argv[]) {
     string lat = args.lat;
     
     int sweeps = 10000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 100000;
+    int sample_size = 210000;
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -319,39 +287,50 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::ofstream of_cp("output_cp.txt");
-    if (!of_cp.is_open()) {
-        std::cerr << "Failed to open output_cp.txt\n";
-        return 1;
+    std::ostringstream oss;
+    oss.str("");
+    oss << std::fixed << std::setprecision(1) << z;
+    std::string str_z = oss.str();
+    std::string str_z_noformat = str_z; 
+    
+    for (char &c : str_z) {
+        if (c == '.') {
+            c = '-';
+        }
     }
 
-    std::ofstream of_auto_cp("output_auto_cp.txt");
+    std::string output_auto_cp = "sampling/sampling_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
+
+    std::ofstream of_auto_cp(output_auto_cp.c_str());
     if (!of_auto_cp.is_open()) {
-        std::cerr << "Failed to open output_auto_cp.txt\n";
+        std::cerr << "Failed to open sampling (used for autocorrelation) text file\n";
         return 1;
     }
     
     std::vector<std::vector<int>> lattice_adjacency_list;
 
-    std::string python_executable = "/home/tashfiq/micromamba/bin/python"; 
-    std::string gen_lat =
-        python_executable
-        + " lattice_generation.py -L "
-        + std::to_string(L)
-        + " -l "
-        + lat;     
+    std::string adj_data_file = "adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
+    std::ifstream file(adj_data_file);
 
-    FILE* generator = popen(gen_lat.c_str(), "r");
-    if (!generator) {
-        std::cerr << "Failed to execute command" << std::endl;
-        return 1;
+    if (!file) {
+        std::string gen_lat =
+            "python lattice_generation.py -L "
+            + std::to_string(L)
+            + " -l "
+            + lat;     
+
+        FILE* generator = popen(gen_lat.c_str(), "r");
+        if (!generator) {
+            std::cerr << "Failed to execute lattice_generation.py" << std::endl;
+            return 1;
+        }
+        pclose(generator);
     }
-    pclose(generator);
 
-    std::ifstream infile("temp_lattice_data.txt");
+    std::ifstream infile(adj_data_file.c_str());
 
     if (!infile) {
-        std::cerr << "Error opening file!" << std::endl;
+        std::cerr << "Error opening " << adj_data_file << std::endl;
         return 1;
     }
 
@@ -382,9 +361,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
-    std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
-
-    remove("temp_lattice_data.txt");
+    // std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
 
     std::bernoulli_distribution bernoulli_trial((M*z)/((M*z)+1));
     
@@ -513,8 +490,8 @@ int main(int argc, char* argv[]) {
 
         }
         
-        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
-        of_cp << param << std::endl;
+        // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double param = demixedParameter(nodes, M);
         
         if (equilibrium_point_found == false) {
             if (s % block_size != 0) {
@@ -551,10 +528,18 @@ int main(int argc, char* argv[]) {
     
     // std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
 
-    std::string command = "python script_auto.py"; 
+    std::string command =
+            "python script_auto.py -L "
+            + std::to_string(L)
+            + " -l "
+            + lat;
+            + " -M "
+            + std::to_string(M);
+            + " -z "
+            + str_z_noformat;             
     FILE* in = popen(command.c_str(), "r");
     if (!in) {
-        std::cerr << "Failed to execute command" << std::endl;
+        std::cerr << "Failed to execute script_auto.py" << std::endl;
         return 1;
     }
 
@@ -591,9 +576,7 @@ int main(int argc, char* argv[]) {
 
     
     of_auto_cp.close();
-    remove("output_auto_cp.txt");
-    remove("output_cp.txt");
-    
+    remove(output_auto_cp.c_str());    
     
 
     return 0;

@@ -4,8 +4,9 @@ import arch_lattices
 import os
 import plotly.graph_objects as go
 import numpy as np
+import argparse
 
-def plot_network(G, pos, nodes, lat):
+def plot_network(G, pos, nodes, lat, L):
     """
     G = the network x object
     pos = [N, 2] vector of node positions
@@ -75,7 +76,7 @@ def plot_network(G, pos, nodes, lat):
     # Create figure
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title=f"Lattice Type: {lat}",
+                        title=f"Lattice Type: {lat}, L = {L}",
                         #titlefont_size=16,
                         showlegend=False,
                         hovermode='closest',
@@ -86,24 +87,36 @@ def plot_network(G, pos, nodes, lat):
 
     fig.show()
 
-L = 0
-l = ""
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser()
 
-with open("temp_lattice_parameters.txt") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
-    L = int(f.readline().strip())
-    l = f.readline().strip() 
+    parser.add_argument(
+        "-L", "--L",
+        type=int,
+        required=True,
+        help="Dimensional quantity for number of unit cells (basically lattice size L)"
+    )
+    parser.add_argument(
+        "-l", "--lattice",
+        type=str,
+        required=True,
+        help="Lattice type"
+    )
 
-lattice_graph = arch_lattices.gen_lattice(l, [L , L], False)
+    args = parser.parse_args()
 
-graph = lattice_graph.to_networkx()                     # converting original NetKet lattice graph to NetworkX graph for coloring and display
-nodes = []                                              # 1D vector that stores species/vacancy identities of each node
+    lattice_graph = arch_lattices.gen_lattice(args.lattice, [args.L , args.L], False)
 
-with open("node_color_data.txt") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
-    for x in f:
-        nodes.append(int(x))
+    graph = lattice_graph.to_networkx()                     # converting original NetKet lattice graph to NetworkX graph for coloring and display
+    nodes = []                                              # 1D vector that stores species/vacancy identities of each node
 
-plot_network(graph, lattice_graph.positions, nodes, l)
+    with open("node_color_data.txt") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
+        for x in f:
+            nodes.append(int(x))
 
-# diagnostics/tests
+    plot_network(graph, lattice_graph.positions, nodes, args.lattice, args.L)
+
+    # diagnostics/tests
 
     
