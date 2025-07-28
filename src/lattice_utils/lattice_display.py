@@ -89,7 +89,7 @@ def plot_network(G, pos, nodes, lat):
 L = 0
 l = ""
 
-with open("temp_lattice_parameters.txt") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
+with open("temp_lattice_parameters.txt") as f:          # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
     L = int(f.readline().strip())
     l = f.readline().strip() 
 

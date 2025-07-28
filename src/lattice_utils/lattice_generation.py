@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-import utils.arch_lattices as arch_lattices
+import arch_lattices as arch_lattices
 
 if __name__ == '__main__':
 
