@@ -4,7 +4,7 @@ import signac
 import os
 
 
-arr = [10, 18, 26, 32]
+arr = [9, 12, 15]
 
 project = signac.get_project("/home/tashfiq/wr_lattice/data/workspace")
 
@@ -32,8 +32,8 @@ for L in arr:
         zs, cs = zip(*pairs)
         ax.plot(zs, cs, marker='o', linestyle='-', label=f'L={L}')
 
-plt.ylim(0, 0.8)
-plt.xlim(9.1,9.3)
+plt.ylim(0.5, 0.7)
+plt.xlim(2.5,4.5)
 
 plt.legend()
 

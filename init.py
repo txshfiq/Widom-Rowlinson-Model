@@ -4,13 +4,13 @@ import signac
 
 project = signac.init_project("/home/tashfiq/wr_lattice/data")
 
-arr = [10, 18, 26, 32, 40]
-z_vals = np.linspace(9.1,10,10)
+arr = [9, 12, 15, 18]
+z_vals = np.linspace(2.5,4.5,4)
 rounded_z_vals = np.round(z_vals, 2)
 
 for L in arr:
     for z in rounded_z_vals:
-        sp = {"z": float(z), "M": 8, "L": L, "lat": "hexagonal"}
+        sp = {"z": float(z), "M": 5, "L": L, "lat": "hexagonal"}
         job = project.open_job(sp).init()
         print(job)
 

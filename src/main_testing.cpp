@@ -73,7 +73,7 @@ struct MyArgs : public argparse::Args {
 
 
     g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main_testing -lstdc++fs
-    ./main_testing --L 36 --M 2 --z 3.9 --lat bathroom --sweeps 10000
+    ./main_testing --L 20 --M 3 --z 0.5 --lat triangular --sweeps 10000
 
 
 */
@@ -478,6 +478,11 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open output_cp_extra.txt\n";
         return 1;
     }
+    std::ofstream of_de("density.txt");
+    if (!of_de.is_open()) {
+        std::cerr << "Failed to open density.txt\n";
+        return 1;
+    }
 
     std::ofstream node_coloring("node_color_data.txt");
     if (!node_coloring.is_open()) {
@@ -525,7 +530,7 @@ int main(int argc, char* argv[]) {
         for (char& c : line) {
             if (c=='[' || c==']' || c==',') c = ' ';
         }
-
+    
         std::istringstream iss(line);
         std::vector<int> adj_list_push_back;
 
@@ -544,7 +549,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
-    /*
+    
     if (isBipartite(lattice_adjacency_list)) {
         std::cout << "bipartite" << std::endl;
     } else {
@@ -558,8 +563,7 @@ int main(int argc, char* argv[]) {
     }
 
 
-    printVector(sublattice_locations);
-    */
+
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
 
     std::bernoulli_distribution bernoulli_trial((M*z)/((M*z)+1));
@@ -598,6 +602,8 @@ int main(int argc, char* argv[]) {
 
     NonBlockingTerminal nbt;
     bool keyPressed = false;
+
+    std::vector<double> density_vals;
 
     while (s <= sweeps && !keyPressed) {
 
@@ -695,17 +701,27 @@ int main(int argc, char* argv[]) {
         // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
         double param = demixedParameter(nodes, M);
         double param2 = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        
+        /*
+        if (s >= 15000) {
+            double param2 = density(nodes);
+            density_vals.push_back(param2);
+        }
+        */
 
     
         of_cp << param << std::endl;
         of_cp_2 << param2 << std::endl;
+        of_de << density(nodes) << std::endl;
                 
         s++;
     }
-
-    for (int k = 0; k < nodes.size(); k++) {
-        node_coloring << nodes[k] << std::endl;
+    
+    
+    for (int k = 0; k < sublattice_locations.size(); k++) {
+        node_coloring << sublattice_locations[k] << std::endl;
     }
+    
     
     std::string disp_lat =
     "python lattice_display.py -L "
@@ -723,6 +739,7 @@ int main(int argc, char* argv[]) {
 
     of_cp.close();
     of_cp_2.close();
+    of_de.close();
     node_coloring.close();
 
     return 0;

@@ -233,23 +233,6 @@ double demixedParameter(std::vector<int> nodes, int M) {
     return std::abs(total);
 }
 
-double mean(std::vector<double> arr) {
-    double total = 0;
-    for (double val : arr) {
-        total += val;
-    }
-    return total / arr.size();
-}
-
-double variance(std::vector<double> arr) {
-    double mean_val = mean(arr);
-    double total = 0;
-    for (double val : arr) {
-        total += pow(val - mean_val, 2);
-    }
-    return total / arr.size();
-}
-
 int randInt(int x, int y) {
     std::uniform_int_distribution<int> dist(x, y);
     int a = dist(rng);  // y ∼ Uniform{a,…,b}   
@@ -277,8 +260,8 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 10000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 210000;
+    int sweeps = 25000; // will be modified during runtime when equilibrium point is reached
+    int sample_size = 10000000;
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -289,7 +272,7 @@ int main(int argc, char* argv[]) {
 
     std::ostringstream oss;
     oss.str("");
-    oss << std::fixed << std::setprecision(1) << z;
+    oss << std::fixed << std::setprecision(2) << z;
     std::string str_z = oss.str();
     std::string str_z_noformat = str_z; 
     
@@ -299,44 +282,29 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::string output_auto_cp = "sampling/sampling_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
+    std::string cp_filename = "data/sampling/crystal/crystal_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
+    std::string dp_filename = "data/sampling/demixed/demixed_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
+    std::string de_filename = "data/sampling/density/density_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
 
-    std::ofstream of_auto_cp(output_auto_cp.c_str());
-    if (!of_auto_cp.is_open()) {
-        std::cerr << "Failed to open sampling (used for autocorrelation) text file\n";
-        return 1;
-    }
+    // opening data files
+    std::ofstream cp_data(cp_filename.c_str());
+    std::ofstream dp_data(dp_filename.c_str());
+    std::ofstream de_data(de_filename.c_str());
     
     std::vector<std::vector<int>> lattice_adjacency_list;
 
-    std::string adj_data_file = "adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
+    std::string adj_data_file = "src/lattice/adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
     std::ifstream file(adj_data_file);
 
     if (!file) {
-        std::string gen_lat =
-            "python lattice_generation.py -L "
-            + std::to_string(L)
-            + " -l "
-            + lat;     
-
-        FILE* generator = popen(gen_lat.c_str(), "r");
-        if (!generator) {
-            std::cerr << "Failed to execute lattice_generation.py" << std::endl;
-            return 1;
-        }
-        pclose(generator);
-    }
-
-    std::ifstream infile(adj_data_file.c_str());
-
-    if (!infile) {
-        std::cerr << "Error opening " << adj_data_file << std::endl;
+        std::cerr << "Missing adjacency list: " << adj_data_file
+                  << " (run Row action `generate_lattice` first)" << std::endl;
         return 1;
     }
 
     string line;
 
-    while (std::getline(infile, line)) {
+    while (std::getline(file, line)) {
         // turn “[”, “]”, “,” into plain spaces:
         for (char& c : line) {
             if (c=='[' || c==']' || c==',') c = ' ';
@@ -361,7 +329,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<int> nodes(lattice_adjacency_list.size(), 0);
-    // std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
+    std::vector<int> sublattice_locations = backtrackGraphColoring(lattice_adjacency_list, k, lattice_adjacency_list.size());
 
     std::bernoulli_distribution bernoulli_trial((M*z)/((M*z)+1));
     
@@ -393,12 +361,8 @@ int main(int argc, char* argv[]) {
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
 
-    vector<double> crystal_parameters_test;
-    vector<double> crystal_parameters_eq;
-    vector<double> crystal_parameters_sampling;
-
-    double critical_variance = 0.0005; // critical variance for equilibrium point detection
-    int block_size = 2500; // block size for variance calculation
+    // double critical_variance = 0.0005; // critical variance for equilibrium point detection
+    // int block_size = 2500; // block size for variance calculation
 
     bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
 
@@ -490,94 +454,20 @@ int main(int argc, char* argv[]) {
 
         }
         
-        // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
-        double param = demixedParameter(nodes, M);
-        
-        if (equilibrium_point_found == false) {
-            if (s % block_size != 0) {
-                crystal_parameters_test.push_back(param);
-            }
-            else {
-                if (variance(crystal_parameters_test) < critical_variance) {
-                    // std::cout << colors[2] << "Critical point reached at sweep " << s << " with variance: " << variance(crystal_parameters_test) << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                else if (s >= sweeps) {
-                    // std::cout << colors[1] << "Maximum sweeps reached without finding equilibrium point, will start collecting data..." << " sample size: " << sample_size << "\033[0m" << std::endl;
-                    equilibrium_point_found = true; // set equilibrium point found to true
-                    sweeps = s + sample_size;
-                }
-                else {
-                    // std::cout << colors[1] << "Variance too high at sweep " << s << ", continuing simulation..." << "\033[0m" << std::endl;
-                }
-                crystal_parameters_test.clear(); // clear the test array for next variance calculation
-            }
-        }
-    
-        if (s < sweeps && equilibrium_point_found == true) {
-            crystal_parameters_sampling.push_back(param);
-            of_auto_cp << param << std::endl;
-        }
-        
+        double cp = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double de = density(nodes);
+        double dp = demixedParameter(nodes, M);
+
+        cp_data << cp << std::endl;
+        dp_data << dp << std::endl;
+        de_data << de << std::endl;
+
         s++;
     }
 
-    // std::cout << colors[2] << "Data collection complete. Total sweeps: " << s-1 << "\033[0m" << std::endl;
-
-    
-    // std::cout << colors[4] << "Calculating autocorrelation time using Python script..." << "\033[0m" << std::endl;
-
-    std::string command =
-            "python script_auto.py -L "
-            + std::to_string(L)
-            + " -l "
-            + lat;
-            + " -M "
-            + std::to_string(M);
-            + " -z "
-            + str_z_noformat;             
-    FILE* in = popen(command.c_str(), "r");
-    if (!in) {
-        std::cerr << "Failed to execute script_auto.py" << std::endl;
-        return 1;
-    }
-
-    double value;
-    while (fscanf(in, "%lf", &value) == 1) {
-        // value is being read
-    }
-
-    // std::cout << colors[5] << "Autocorrelation time (in sweeps): " << value << "\033[0m" << std::endl;
-
-    
-    
-    int decorrelationTime = 10;   // int decorrelationTime = roundDownToNearestTen(2*value); ---> replaced with sampling every 10th sweep
-    int counterForAverage = 0;
-
-    double fourthOrderAvg = 0;
-    double secondOrderAvg = 0;
-    for (int i = 1; i <= crystal_parameters_sampling.size(); i++) {
-        if (i % decorrelationTime == 0) {
-            counterForAverage++;
-            fourthOrderAvg += pow(crystal_parameters_sampling[i-1],4);
-            secondOrderAvg += pow(crystal_parameters_sampling[i-1],2);
-        }
-    }
-
-    fourthOrderAvg /= counterForAverage;
-    secondOrderAvg /= counterForAverage;
-    
-    double cumulant = 1 - (fourthOrderAvg/(3*pow(secondOrderAvg, 2)));
-
-    // std::cout << colors[3] << "Binder cumulant: " << cumulant << "\033[0m" << std::endl;
-    std::cout << cumulant << std::endl;
-
-
-    
-    of_auto_cp.close();
-    remove(output_auto_cp.c_str());    
-    
+    cp_data.close();
+    dp_data.close();
+    de_data.close();  
 
     return 0;
 }

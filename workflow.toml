@@ -9,7 +9,17 @@ output_file_path = "/home/tashfiq/wr_lattice/data/results"
 [[action]]
 name = "run_simulation"
 products = ["counts.txt.in_progress"]
-command = "python project.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action run_simulation {directory}"
+command = "python src/actions/project.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action run_simulation {directory}"
+
+[[action]]
+name = "generate_lattice"
+command = "python src/lattice/lattice_generation.py -L {/L} -l {/lat} --action generate_lattice {directory}"
+products = ["/src/lattice/adj-lists/adj_list_{/L}_{/lat}.txt"]
+
+[[action]]
+name = "compute_cumulant"
+command = "python src/actions/cumulant_computation.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action compute_cumulant {directory}"
+products = ["counts.txt.in_progress"]
 
 [action.resources]
 walltime.per_directory = "50:00:00"
