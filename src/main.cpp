@@ -260,8 +260,7 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 25000; // will be modified during runtime when equilibrium point is reached
-    int sample_size = 10000000;
+    int sweeps = 500000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -391,7 +390,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (isCluster == true) { 
+            if (isCluster == true) {  ///changed
                 bool prob_cluster_flipping = bernoulli_trial_cluster(rng); // decide whether to do cluster flipping or single site modification
                 
                 if (prob_cluster_flipping == true) {

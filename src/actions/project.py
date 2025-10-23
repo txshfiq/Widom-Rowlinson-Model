@@ -1,6 +1,8 @@
 import signac
 import argparse
 import subprocess
+import os
+import glob
 
 def run_wr(executable: str, L: int, M: int, z: float, lat: str) -> str:
     cmd = [
@@ -76,7 +78,6 @@ if __name__ == '__main__':
     # Open the signac jobs
     project = signac.get_project("/home/tashfiq/wr_lattice/data/workspace")
 
-    SRC  = 'src/main.cpp'
     BIN  = 'main'
 
     L = args.num3

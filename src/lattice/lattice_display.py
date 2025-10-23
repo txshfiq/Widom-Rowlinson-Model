@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 
-def plot_network(G, pos_dict, nodes, lat, L):
+def plot_network(G, pos, nodes, lat):
     """
     G = the network x object
     pos = [N, 2] vector of node positions
@@ -29,20 +29,44 @@ def plot_network(G, pos_dict, nodes, lat, L):
 
     colorscale = 'Viridis'
     degrees = dict(G.degree())
-
+    
+    # Create a plotly Scatter plot for nodes
     node_x = []
     node_y = []
     node_color = []
 
     for node in G.nodes():
-        x, y = pos_dict[node]
+        x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
         index = nodes[node]
         node_color.append(colors[index])
 
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers',
+        marker=dict(
+            size=10,
+            color=node_color,
+            colorscale=colorscale,
+            colorbar=dict(
+                title='Node Degree'
+            ),
+            showscale=True
+        ),
+        text=[f'Degree: {degrees[node]}' for node in G.nodes()],
+        hoverinfo='text'
+    )
+    
+    # Create a plotly Scatter plot for edges
     edge_x = []
     edge_y = []
+
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
@@ -50,18 +74,19 @@ def plot_network(G, pos_dict, nodes, lat, L):
         hoverinfo='none',
         mode='lines')
 
+    # Create figure
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title=f"Lattice Type: {lat}, L = {L}",
+                        title=f"Lattice Type: {lat}",
+                        #titlefont_size=16,
                         showlegend=False,
                         hovermode='closest',
                         margin=dict(b=20, l=5, r=5, t=40),
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    ))
+                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                   )
 
-    fig.update_yaxes(scaleanchor="x", scaleratio=1)  # << Symmetry enforcement
-    fig.write_image(lat + ".svg")
+    fig.show()
 
 
 if __name__ == '__main__':
@@ -87,35 +112,12 @@ if __name__ == '__main__':
 
     graph = lattice_graph.to_networkx()                     # converting original NetKet lattice graph to NetworkX graph for coloring and display
     nodes = []                                              # 1D vector that stores species/vacancy identities of each node
-    
-    
+
     with open("node_color_data.txt") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
         for x in f:
             nodes.append(int(x))
-    
 
-    nodes = [0] * lattice_graph.n_nodes
-
-    pos_dict = {i: pos for i, pos in enumerate(lattice_graph.positions)}
-    plot_network(graph, pos_dict, nodes, args.lattice, args.L)
-
-    '''
-    lattice_graph.draw(ax=None, figsize=None, distance_order=1, 
-        node_size=50, 
-        node_color='#1f78b4', 
-        node_text_color=None, 
-        node_text_offset=None, 
-        extra_sites_alpha=0.3, 
-        draw_neighbors=True, 
-        draw_text=False, 
-        draw_basis_vectors=False, 
-        draw_unit_cell=False, 
-        show=True
-        )
-    plt.savefig('lattice_graph.svg')
-    plt.close()
-    '''
-
+    plot_network(graph, lattice_graph.positions, nodes, args.lattice)
 
     # diagnostics/tests
 

@@ -3,7 +3,7 @@ path = "/home/tashfiq/wr_lattice/data/workspace/"
 value_file = "signac_statepoint.json"
 
 [default.action.submit_options.greatlakes]
-account = "sglotzer0"
+account = "sglotzer9"
 output_file_path = "/home/tashfiq/wr_lattice/data/results"
 
 [[action]]

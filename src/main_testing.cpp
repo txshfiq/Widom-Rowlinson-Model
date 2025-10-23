@@ -73,7 +73,7 @@ struct MyArgs : public argparse::Args {
 
 
     g++ -std=c++17 -O3 -I./include src/main_testing.cpp -o main_testing -lstdc++fs
-    ./main_testing --L 20 --M 3 --z 0.5 --lat triangular --sweeps 10000
+    ./main_testing --L 20 --M 8 --z 0.8 --lat square --sweeps 50000
 
 
 */
@@ -468,6 +468,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    /*
     std::ofstream of_cp("output_cp.txt");
     if (!of_cp.is_open()) {
         std::cerr << "Failed to open output_cp.txt\n";
@@ -483,35 +484,18 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to open density.txt\n";
         return 1;
     }
+    */
 
     std::ofstream node_coloring("node_color_data.txt");
     if (!node_coloring.is_open()) {
         std::cerr << "Failed to open node_color_data.txt\n";
         return 1;
     }
-    
 
     std::vector<std::vector<int>> lattice_adjacency_list;
 
-    std::string adj_data_file = "adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
+    std::string adj_data_file = "src/lattice/adj-lists/adj_list_" + std::to_string(L) + "_" + args.lat + ".txt";
     std::ifstream file(adj_data_file);
-
-    if (!file) {
-        std::cout << "Generating lattice adjacency list" << std::endl;
-        std::string gen_lat =
-            "python lattice_generation.py -L "
-            + std::to_string(L)
-            + " -l "
-            + lat;     
-
-        FILE* generator = popen(gen_lat.c_str(), "r");
-        if (!generator) {
-            std::cerr << "Failed to execute lattice_generation.py" << std::endl;
-            return 1;
-        }
-        pclose(generator);
-        std::cout << "Generating DONE!" << std::endl;
-    }
 
     std::cout << "Accessing lattice adjacency list" << std::endl;
 
@@ -699,8 +683,8 @@ int main(int argc, char* argv[]) {
         }
         
         // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
-        double param = demixedParameter(nodes, M);
-        double param2 = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double param2 = demixedParameter(nodes, M);
+        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
         
         /*
         if (s >= 15000) {
@@ -710,21 +694,22 @@ int main(int argc, char* argv[]) {
         */
 
     
-        of_cp << param << std::endl;
-        of_cp_2 << param2 << std::endl;
-        of_de << density(nodes) << std::endl;
-                
+        // of_cp << param << std::endl;
+        // of_cp_2 << param2 << std::endl;
+
+        // of_de << density(nodes) << std::endl;
+        std::cout << s << std::endl;     
         s++;
     }
     
     
-    for (int k = 0; k < sublattice_locations.size(); k++) {
-        node_coloring << sublattice_locations[k] << std::endl;
+    for (int k = 0; k < nodes.size(); k++) {
+        node_coloring << nodes[k] << std::endl;
     }
     
     
     std::string disp_lat =
-    "python lattice_display.py -L "
+    "python src/lattice/lattice_display.py -L "
         + std::to_string(L)
         + " -l "
         + lat;
@@ -737,9 +722,9 @@ int main(int argc, char* argv[]) {
     pclose(oth);
     
 
-    of_cp.close();
-    of_cp_2.close();
-    of_de.close();
+    // of_cp.close();
+    // of_cp_2.close();
+    // of_de.close();
     node_coloring.close();
 
     return 0;
