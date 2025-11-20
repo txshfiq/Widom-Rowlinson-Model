@@ -1,0 +1,28 @@
+Simulation parameters: L = 20, M = 8, z = 0.9, lat = square
+Program output:
+ 
+Simulation parameters: L = 30, M = 8, z = 1.3, lat = square
+Program output:
+ 
+Simulation parameters: L = 30, M = 8, z = 1.1, lat = square
+Program output:
+ 
+Simulation parameters: L = 10, M = 8, z = 1.0, lat = square
+Program output:
+ 
+Simulation parameters: L = 30, M = 8, z = 0.9, lat = square
+Program output:
+ 
+Simulation parameters: L = 30, M = 8, z = 1.0, lat = square
+Program output:
+ 
+Simulation parameters: L = 30, M = 8, z = 1.2, lat = square
+Program output:
+ 
+Simulation parameters: L = 20, M = 8, z = 1.3, lat = square
+Program output:
+ 
+Simulation parameters: L = 20, M = 8, z = 1.0, lat = square
+Program output:
+ 
+slurmstepd: error: *** JOB 35313999 ON gl3026 CANCELLED AT 2025-11-04T16:38:45 ***

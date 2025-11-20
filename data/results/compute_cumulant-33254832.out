@@ -1,0 +1,17 @@
+Warning on use of the timeseries module: If the inherent timescales of the system are long compared to those being analyzed, this statistical inefficiency may be an underestimate.  The estimate presumes the use of many statistically independent samples.  Tests should be performed to assess whether this condition is satisfied.   Be cautious in the interpretation of the data.
+
+****** PyMBAR will use 64-bit JAX! *******
+* JAX is currently set to 32-bit bitsize *
+* which is its default.                  *
+*                                        *
+* PyMBAR requires 64-bit mode and WILL   *
+* enable JAX's 64-bit mode when called.  *
+*                                        *
+* This MAY cause problems with other     *
+* Uses of JAX in the same code.          *
+******************************************
+
+usage: cumulant_computation.py [-h] --num1 NUM1 --num2 NUM2 --num3 NUM3
+                               --str1 STR1
+cumulant_computation.py: error: unrecognized arguments: --action compute_cumulant de2b3761c87b858d33661c734ff4eda3
+[ERROR row::action] Error executing command.

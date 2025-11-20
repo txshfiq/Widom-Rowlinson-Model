@@ -143,6 +143,7 @@ std::vector<int> clusterFinder(const std::vector<int>& nodes, const std::vector<
 }
 
 double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
+    /*
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
         if (nodes[i] == 0) {
@@ -209,6 +210,29 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
     double val_three = three / three_total;
 
     return std::max(val_one, std::max(val_two, val_three));
+    */
+    
+    double c = 0;
+    for (int i = 0; i < nodes.size(); i++) {
+        if (sublattice_locations[i] == 1) {
+            if (nodes[i] != 0) {
+                c++;
+            }
+            else {
+                c--;
+            }
+        }
+        if (sublattice_locations[i] == 2) {
+            if (nodes[i] != 0) {
+                c--;
+            }
+            else {
+                c++;
+            }
+        }
+    }
+    c /= nodes.size();
+    return std::abs(c);
 }
 
 double density(std::vector<int> nodes) {
@@ -260,7 +284,7 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 500000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 1000000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -358,96 +382,55 @@ int main(int argc, char* argv[]) {
     
     int s = 1; // start at sweep 1
 
-    std::uniform_real_distribution<double> uni(0.0, 1.0);
+    double p = 0.85;
 
-    // double critical_variance = 0.0005; // critical variance for equilibrium point detection
-    // int block_size = 2500; // block size for variance calculation
-
-    bool equilibrium_point_found = false; // flag to indicate if equilibrium point has been found
-
-    double p_remove = 1.0/(M * std::min(1.0/z, 1.0));
-    std::bernoulli_distribution bernoulli_trial_cluster(p_remove); // for cluster flipping
-
-
-    // std::cout << "Running simulation with parameters: L = " << L << ", M = " << M << ", z = " << z << std::endl;
+    std::bernoulli_distribution p_remove(p); // for cluster flipping
+    std::bernoulli_distribution A_remove(std::min(1.0, (1.0/(z*M*p))));
+    std::bernoulli_distribution A_insert(std::min(1.0, (z*M*p)));
 
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
-            int i = randInt(0, nodes.size()-1);
-            int k = randInt(0, M);
+            int i = randInt(0, nodes.size()-1); // Choose a site at random
+            int k = randInt(0, M);              // Choose a color at random
 
-            int x = randInt(0, nodes.size()-1);
-            
-            bool isCluster = false;
-
-            if (nodes[x] != 0) {    // if randomly selected site has something in it
-                for (int j = 0; j < lattice_adjacency_list[x].size(); j++) {
-                    int index = lattice_adjacency_list[x][j];
-                    if (nodes[x] == nodes[index]) {
-                        isCluster = true;
-                        break;
+            if (nodes[i] != 0) {
+                if (p_remove(rng)) {
+                    if (A_remove(rng)) {
+                        nodes[i] = 0;
+                    }
+                    else {
+                        continue;
                     }
                 }
-            }
+                else {
+                    std::vector<int> cluster = clusterFinder(nodes, lattice_adjacency_list, i);
 
-            if (isCluster == true) {  ///changed
-                bool prob_cluster_flipping = bernoulli_trial_cluster(rng); // decide whether to do cluster flipping or single site modification
-                
-                if (prob_cluster_flipping == true) {
-                    std::vector<int> cluster = clusterFinder(nodes, lattice_adjacency_list, x);
-
-                    int col = randIntWithoutVal(1, M, nodes[x]);
+                    int col = randIntWithoutVal(1, M, nodes[i]);
                     for (int v : cluster) { 
                         nodes[v] = col;
                     }
-                    continue;
-                }
-                else {
-                    nodes[x] = 0;
-                    continue;
-                }
-                
-            }
-            
-            bool conflict = false;
-            for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
-                int index = lattice_adjacency_list[i][j];
-                if (k != nodes[index] && nodes[index] != 0) {
-                    conflict = true;
-                    break;
                 }
             }
+            else {
+                if (A_insert(rng)) {
+                    bool conflict = false;
+                        for (int j = 0; j < lattice_adjacency_list[i].size(); j++) {
+                            int index = lattice_adjacency_list[i][j];
+                            if (k != nodes[index] && nodes[index] != 0) {
+                                conflict = true;
+                                break;
+                            }
+                        }
 
-            if (nodes[i] == 0) { // if current nodes(i) site is empty
-                double insertion_test = z;
-                if (conflict == false && uni(rng) < insertion_test) { // rand(0,1) must be less than z
-                    nodes[i] = k; // accept move
-                }
-                else {
-                    continue; // if probability not reached then leave site unchanged
-                }
-            }
-            bool allEmpty = true;
-            for (int v : lattice_adjacency_list[i]) {
-                if (nodes[v] != 0) {
-                    allEmpty = false;
-                    break;
-                }
-            }
-            if (nodes[i] != 0) { // if current lattice(i,j) site has a particle
-                if (k == 0) {
-                    double removal_test = 1/z;
-                    if (uni(rng) < removal_test) { // rand(0, 1) must be less than 1/z
-                        nodes[i] = k; // accept move
-                    }
-                    else {
-                        continue; // if probability not reached then leave site unchanged
-                    }
-                }
-                else {
-                    if (allEmpty) { // replace particle if there is no resulting conflict
+                    if (conflict == false) {
                         nodes[i] = k;
                     }
+                    else {
+                        continue;
+                    }
+                }
+                else {
+                    continue;
                 }
             }
 

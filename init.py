@@ -15,12 +15,12 @@ for item in os.listdir(directory):
         shutil.rmtree(item_path)
 
 arr = [10, 20, 30, 40]
-z_vals = np.linspace(0.4,0.9,6)
+z_vals = np.linspace(0.5,1,6)
 rounded_z_vals = np.round(z_vals, 2)
 
 for L in arr:
     for z in rounded_z_vals:
-        sp = {"z": float(z), "M": 8, "L": L, "lat": "square"}
+        sp = {"z": float(z), "M": 9, "L": L, "lat": "square"}
         job = project.open_job(sp).init()
         print(job)
 

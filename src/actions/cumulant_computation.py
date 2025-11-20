@@ -131,7 +131,7 @@ if __name__ == '__main__':
     # print(len(data))
 
     
-    data = data[20000:]
+    data = data[100000:]
     
     '''
     g = timeseries.statistical_inefficiency(data)

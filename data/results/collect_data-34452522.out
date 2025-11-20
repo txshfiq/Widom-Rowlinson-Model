@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/tashfiq/wr_lattice/src/actions/data_collection.py", line 10, in <module>
+    parser.add_argument('--action', required=True)
+    ^^^^^^
+NameError: name 'parser' is not defined
+[ERROR row::action] Error executing command.

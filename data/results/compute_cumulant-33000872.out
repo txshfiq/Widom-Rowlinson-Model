@@ -1,0 +1,17 @@
+Warning on use of the timeseries module: If the inherent timescales of the system are long compared to those being analyzed, this statistical inefficiency may be an underestimate.  The estimate presumes the use of many statistically independent samples.  Tests should be performed to assess whether this condition is satisfied.   Be cautious in the interpretation of the data.
+
+****** PyMBAR will use 64-bit JAX! *******
+* JAX is currently set to 32-bit bitsize *
+* which is its default.                  *
+*                                        *
+* PyMBAR requires 64-bit mode and WILL   *
+* enable JAX's 64-bit mode when called.  *
+*                                        *
+* This MAY cause problems with other     *
+* Uses of JAX in the same code.          *
+******************************************
+
+crystal_L10_M14_z1-22_hexagonal.txt
+/home/tashfiq/wr_lattice/data/sampling/crystal/crystal_L10_M14_z1-22_hexagonal.txt
+[0.59 0.56 0.56 ... 0.91 0.93 0.93]
+0.6638556898116345

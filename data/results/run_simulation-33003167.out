@@ -1,0 +1,5 @@
+  File "/home/tashfiq/wr_lattice/src/actions/project.py", line 89
+    files = glob.glob(os.path.join("/home/tashfiq/wr_lattice/src/" + str, *))
+                                                                           ^
+SyntaxError: Invalid star expression
+[ERROR row::action] Error executing command.

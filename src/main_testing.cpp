@@ -263,7 +263,49 @@ std::vector<int> clusterFinder(const std::vector<int>& nodes, const std::vector<
     return cluster_vertices;
 }
 
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
+
+double crystalParameter(std::vector<int> nodes, std::vector<int> sublattice_locations) {
+    double p_1 = 0;
+    double p_2 = 0;
+    double p_3 = 0;
+
+    double N_sites = nodes.size();
+    for (int i = 0; i < nodes.size(); i++) {
+        if ((sublattice_locations[i] == 1 && nodes[i] != 0) || (sublattice_locations[i] != 1 && nodes[i] == 0)) {
+            p_1++;
+        }
+        if ((sublattice_locations[i] == 1 && nodes[i] == 0) || (sublattice_locations[i] != 1 && nodes[i] != 0)) {
+            p_1--;
+        }
+    }
+    for (int i = 0; i < nodes.size(); i++) {
+        if ((sublattice_locations[i] == 2 && nodes[i] != 0) || (sublattice_locations[i] != 1 && nodes[i] == 0)) {
+            p_2++;
+        }
+        if ((sublattice_locations[i] == 2 && nodes[i] == 0) || (sublattice_locations[i] != 1 && nodes[i] != 0)) {
+            p_2--;
+        }
+    }
+    for (int i = 0; i < nodes.size(); i++) {
+        if ((sublattice_locations[i] == 3 && nodes[i] != 0) || (sublattice_locations[i] != 3 && nodes[i] == 0)) {
+            p_3++;
+        }
+        if ((sublattice_locations[i] == 3 && nodes[i] == 0) || (sublattice_locations[i] != 3 && nodes[i] != 0)) {
+            p_3--;
+        }
+    }
+
+    p_1 /= N_sites;
+    p_2 /= N_sites;
+    p_3 /= N_sites;
+
+    double p_sub = std::max(p_1, p_2);
+
+    return std::max(p_sub, p_3);
+}
+
+
+double crystalParameter2(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
     std::vector<int> occupancy_nodes;
     for (int i = 0; i < nodes.size(); i++) {
         if (nodes[i] == 0) {
@@ -330,6 +372,30 @@ double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> ad
     double val_three = three / three_total;
 
     return std::max(val_one, std::max(val_two, val_three));
+}
+
+double crystalParameter3(std::vector<int> nodes, std::vector<int> sublattice_locations) {
+    double c = 0;
+    for (int i = 0; i < nodes.size(); i++) {
+        if (sublattice_locations[i] == 1) {
+            if (nodes[i] != 0) {
+                c++;
+            }
+            else {
+                c--;
+            }
+        }
+        if (sublattice_locations[i] != 1) {
+            if (nodes[i] != 0) {
+                c--;
+            }
+            else {
+                c++;
+            }
+        }
+    }
+    c /= nodes.size();
+    return std::abs(c);
 }
 
 double density(std::vector<int> nodes) {
@@ -682,9 +748,9 @@ int main(int argc, char* argv[]) {
 
         }
         
-        // double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        // double param3 = crystalParameter2(nodes, lattice_adjacency_list, sublattice_locations);
         double param2 = demixedParameter(nodes, M);
-        double param = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double param = crystalParameter3(nodes, sublattice_locations);
         
         /*
         if (s >= 15000) {
@@ -698,7 +764,7 @@ int main(int argc, char* argv[]) {
         // of_cp_2 << param2 << std::endl;
 
         // of_de << density(nodes) << std::endl;
-        std::cout << s << std::endl;     
+        std::cout << param << std::endl;     
         s++;
     }
     
