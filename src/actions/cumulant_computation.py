@@ -1,14 +1,19 @@
 import signac
 import argparse
-from pymbar import timeseries
 import numpy as np
 import os
 import matplotlib.pyplot as plt
 import math
+from sklearn.utils import resample
 
 def output_cumulant(job, cumulant):
     with open(job.fn("cumulant.txt"), "w") as file:
         file.write(str(cumulant) + "\n")
+
+def bootstrap(job, sample):
+    with open(job.fn("bootstrap.txt"), "w") as file:
+        for value in sample:
+            file.write(f"{value}\n")
 
 def add_error_bars(job, error):
     with open(job.fn("error_bars.txt"), "w") as file:
@@ -114,12 +119,12 @@ if __name__ == '__main__':
     z = args.num1
     lat = args.str1
 
-    dt = "crystal"
+    param = "demixed"
 
     data = []
 
-    filename = dt + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.2f}".replace('.', '-') + "_" + lat + ".txt"
-    pathname = "/home/tashfiq/wr_lattice/data/sampling/crystal/" + filename
+    filename = param + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.2f}".replace('.', '-') + "_" + lat + ".txt"
+    pathname = "/home/tashfiq/wr_lattice/data/sampling/" + param + "/" + filename
 
     with open(pathname, "r") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
         for x in f:
@@ -130,9 +135,17 @@ if __name__ == '__main__':
     # t0, g, Neff_max = timeseries.detect_equilibration(data_limit)
     # print(len(data))
 
-    
-    data = data[100000:]
-    
+    data = data[20000:]
+
+    bootstrap_samples = []
+
+    for k in range(1500):
+        sample = resample(data)
+        U = binder_cumulant(sample)
+        bootstrap_samples.append(U)
+
+            
+
     '''
     g = timeseries.statistical_inefficiency(data)
     tau_int = (g-1.0) / 2.0
@@ -158,6 +171,7 @@ if __name__ == '__main__':
         if job.sp.L == L and job.sp.M == M and job.sp.z == z:
             output_cumulant(job, U_L)
             add_error_bars(job, err)
+            bootstrap(job, bootstrap_samples)
 
     # Call the action
     # globals()[args.action](*jobs)

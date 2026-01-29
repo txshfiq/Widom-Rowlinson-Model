@@ -1,0 +1,2 @@
+slurmstepd: error: *** JOB 39002771 ON gl3097 CANCELLED AT 2025-12-28T18:57:05 ***
+/var/spool/slurmd.spool/job39002771/slurm_script: line 1: 3537577 Terminated              python src/actions/cumulant_computation.py -z 1.3 -M 8 -L 32 -lat square --action compute_cumulant b6b72b30cbe47c2d227aca6cab355037

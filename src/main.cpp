@@ -23,7 +23,6 @@ struct MyArgs : public argparse::Args {
     g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -O3
     ./main --L 15 --M 15 --z 6 --lat square
 
-
 */
 
 // seeding random number generator (Philox)
@@ -142,76 +141,51 @@ std::vector<int> clusterFinder(const std::vector<int>& nodes, const std::vector<
     return cluster_vertices;
 }
 
-double crystalParameter(std::vector<int> nodes, std::vector<std::vector<int>> adj, std::vector<int> sublattice_locations) {
-    /*
-    std::vector<int> occupancy_nodes;
-    for (int i = 0; i < nodes.size(); i++) {
-        if (nodes[i] == 0) {
-            occupancy_nodes.push_back(0);
-        }
-        else {
-            occupancy_nodes.push_back(1);
-        }
-    }
+std::vector<double> sublattice_densities(std::vector<int> nodes, std::vector<int> sublattice_locations) {
+    int k = *std::max_element(sublattice_locations.begin(), sublattice_locations.end()); // size of rho array
 
-    double one = 0;
-    double two = 0;
-    double three = 0;
-
-    double one_total = 0;
-    double two_total = 0;
-    double three_total = 0;
-
-    for (int u = 0; u < adj.size(); u++) {
-        if (sublattice_locations[u] == 1) {
-            one_total++;
-            bool tester = false;
-            for (int v : adj[u]) {
-                if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                    tester = true;
-                }
-            }
-            if (tester == false) {
-                one++;
-            }
-        }
-        if (sublattice_locations[u] == 2) {
-            two_total++;
-            bool tester = false;
-            for (int v : adj[u]) {
-                if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                    tester = true;
-                }
-            }
-            if (tester == false) {
-                two++;
-            }
-        }
-        if (sublattice_locations[u] == 3) {
-            three_total++;
-            bool tester = false;
-            for (int v : adj[u]) {
-                if (occupancy_nodes[u] == occupancy_nodes[v]) {
-                    tester = true;
-                }
-            }
-            if (tester == false) {
-                three++;
-            }
-        }
-    }
-
-    double val_one = one / one_total;
-    double val_two = two / two_total;
-
-    if (three_total == 0) {
-        return std::max(val_one, val_two);
-    }
-    double val_three = three / three_total;
-
-    return std::max(val_one, std::max(val_two, val_three));
-    */
+    vector<double> arr;
     
+    for (int i = 1; i <= k; i++) {
+        int sub_tot = std::count(sublattice_locations.begin(), sublattice_locations.end(), i);
+        double rho = 0;
+        for (int j = 0; j < nodes.size(); j++) {
+            if (sublattice_locations[j] == i && nodes[j] != 0) {
+                rho++;
+            }
+        }
+        rho /= sub_tot;
+        arr.push_back(rho);
+    }
+
+    return arr;
+
+}
+
+double stdev(std::vector<double> arr, int n) {
+    double sum = 0.0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    double mean = sum / n;
+
+    double sqSum = 0.0;
+    for (int i = 0; i < n; i++) {
+        double diff = arr[i] - mean;
+        sqSum += diff * diff;
+    }
+
+    return std::sqrt(sqSum / (n));
+}
+
+double crystalParameterTest(std::vector<int> nodes, std::vector<int> sublattice_locations) {
+    std::vector<double> arr = sublattice_densities(nodes, sublattice_locations);
+    int k = arr.size();
+
+    return (k / std::sqrt(k-1)) * stdev(arr, k);
+}
+
+double crystalParameter(std::vector<int> nodes, std::vector<int> sublattice_locations) {
     double c = 0;
     for (int i = 0; i < nodes.size(); i++) {
         if (sublattice_locations[i] == 1) {
@@ -284,7 +258,7 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 1000000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 250000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -382,7 +356,7 @@ int main(int argc, char* argv[]) {
     
     int s = 1; // start at sweep 1
 
-    double p = 0.85;
+    double p = 0.9;
 
     std::bernoulli_distribution p_remove(p); // for cluster flipping
     std::bernoulli_distribution A_remove(std::min(1.0, (1.0/(z*M*p))));
@@ -391,7 +365,7 @@ int main(int argc, char* argv[]) {
     while (s <= sweeps) {
         for (int m = 0; m < nodes.size(); m++) {
             int i = randInt(0, nodes.size()-1); // Choose a site at random
-            int k = randInt(0, M);              // Choose a color at random
+            int k = randInt(1, M);              // Choose a color at random
 
             if (nodes[i] != 0) {
                 if (p_remove(rng)) {
@@ -436,7 +410,7 @@ int main(int argc, char* argv[]) {
 
         }
         
-        double cp = crystalParameter(nodes, lattice_adjacency_list, sublattice_locations);
+        double cp = crystalParameter(nodes, sublattice_locations);
         double de = density(nodes);
         double dp = demixedParameter(nodes, M);
 

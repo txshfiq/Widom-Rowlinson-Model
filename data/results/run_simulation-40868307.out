@@ -1,0 +1,41 @@
+Simulation parameters: L = 4, M = 2, z = 2.1, lat = square
+Program output:
+ 
+Simulation parameters: L = 16, M = 2, z = 2.3, lat = square
+Program output:
+ 
+Simulation parameters: L = 8, M = 2, z = 2.1, lat = square
+Program output:
+ 
+Simulation parameters: L = 16, M = 2, z = 2.0, lat = square
+Program output:
+ 
+Simulation parameters: L = 32, M = 2, z = 1.9, lat = square
+Program output:
+ 
+Simulation parameters: L = 32, M = 2, z = 2.2, lat = square
+Program output:
+ 
+Simulation parameters: L = 4, M = 2, z = 1.8, lat = square
+Program output:
+ 
+Simulation parameters: L = 64, M = 2, z = 2.3, lat = square
+Program output:
+ 
+Simulation parameters: L = 32, M = 2, z = 2.0, lat = square
+Program output:
+ 
+Simulation parameters: L = 8, M = 2, z = 2.2, lat = square
+Program output:
+ 
+Simulation parameters: L = 64, M = 2, z = 2.2, lat = square
+Program output:
+ 
+Simulation parameters: L = 16, M = 2, z = 2.2, lat = square
+Program output:
+ 
+Simulation parameters: L = 16, M = 2, z = 1.8, lat = square
+Program output:
+ 
+[2026-01-26T13:15:47.940] error: *** JOB 40868307 ON gl3301 CANCELLED AT 2026-01-26T13:15:47 DUE to SIGNAL Terminated ***
+/var/spool/slurmd.spool/job40868307/slurm_script: line 1: 2551709 Terminated              python src/actions/project.py -z 1.8 -M 2 -L 64 -lat square --action run_simulation 73ca6b5ad074f76b54d3543764a31a91
