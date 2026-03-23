@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import math
-from sklearn.utils import resample
+from scipy.stats import bootstrap 
 
 def output_cumulant(job, cumulant):
     with open(job.fn("cumulant.txt"), "w") as file:
@@ -36,10 +36,11 @@ def plot_block_curve(ax, L, avg, err, ref_value=None):
     plt.savefig("block_curve.png", dpi=300, bbox_inches="tight")  # PNG (raster)
 
 def binder_cumulant(data):
-    s_2 = [i**2 for i in data]
-    s_4 = [i**4 for i in data]
+    data = np.array(data)
+    s_2 = data**2
+    s_4 = data**4
 
-    U_L = 1 - (1/3)*(np.mean(s_4)/(np.mean(s_2))**2)
+    U_L = 1 - (1/3)*(np.mean(s_4, axis=1)/np.mean(s_2, axis=1)**2)
 
     return U_L
 
@@ -132,18 +133,10 @@ if __name__ == '__main__':
 
     data = np.array(data)
 
-    # t0, g, Neff_max = timeseries.detect_equilibration(data_limit)
-    # print(len(data))
-
     data = data[20000:]
 
-    bootstrap_samples = []
-
-    for k in range(1500):
-        sample = resample(data)
-        U = binder_cumulant(sample)
-        bootstrap_samples.append(U)
-
+    bs = bootstrap((data,), np.mean, n_resamples=1500)
+    cum_perturbs = binder_cumulant(bs)
             
 
     '''
@@ -153,6 +146,7 @@ if __name__ == '__main__':
     data = data[::math.floor(tau_int)]
     '''
     
+    '''
     L_opt = 3000
 
     N_b = math.floor(len(data)/L_opt)
@@ -164,14 +158,16 @@ if __name__ == '__main__':
         var += (block_vals[i] - ensemble_avg)**2
     var /= (N_b - 1)
     err = np.sqrt(var / N_b)
+    '''
     
     U_L = binder_cumulant(data)
+    
     
     for job in project:
         if job.sp.L == L and job.sp.M == M and job.sp.z == z:
             output_cumulant(job, U_L)
-            add_error_bars(job, err)
-            bootstrap(job, bootstrap_samples)
+            # add_error_bars(job, err)
+            bootstrap(job, cum_perturbs)
 
     # Call the action
     # globals()[args.action](*jobs)

@@ -14,13 +14,19 @@ for item in os.listdir(directory):
     if os.path.isdir(item_path):
         shutil.rmtree(item_path)
 
-arr = [4, 8, 16, 32, 64]
-z_vals = np.linspace(2.0, 2.5, 6)
+start = 30      
+step = 4       
+length = 16     
+
+arr = [start + i*step for i in range(length)]
+
+z_vals = np.linspace(2.59, 2.64, 6)
+
 rounded_z_vals = np.round(z_vals, 2)
 
 for L in arr:
     for z in rounded_z_vals:
-        sp = {"z": float(z), "M": 2, "L": L, "lat": "square"}
+        sp = {"z": float(z), "M": 3, "L": L, "lat": "square"}
         job = project.open_job(sp).init()
         print(job)
 
@@ -29,3 +35,5 @@ for str in ["crystal", "density", "demixed"]:
         for f in files:
             if os.path.isfile(f): 
                 os.remove(f)
+
+print(arr)

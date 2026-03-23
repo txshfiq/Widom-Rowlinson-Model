@@ -186,6 +186,7 @@ double crystalParameterTest(std::vector<int> nodes, std::vector<int> sublattice_
 }
 
 double crystalParameter(std::vector<int> nodes, std::vector<int> sublattice_locations) {
+    /*
     double c = 0;
     for (int i = 0; i < nodes.size(); i++) {
         if (sublattice_locations[i] == 1) {
@@ -207,6 +208,13 @@ double crystalParameter(std::vector<int> nodes, std::vector<int> sublattice_loca
     }
     c /= nodes.size();
     return std::abs(c);
+    */
+
+    std::vector<double> arr = sublattice_densities(nodes, sublattice_locations);
+    int k = arr.size();
+
+    return (k / std::sqrt(k-1)) * stdev(arr, k);
+
 }
 
 double density(std::vector<int> nodes) {
@@ -258,7 +266,7 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 250000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 1750000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
