@@ -22,14 +22,21 @@ name = "generate_lattice"
 command = "python src/lattice/lattice_generation.py -L {/L} -l {/lat} --action generate_lattice {directory}"
 products = ["/src/lattice/adj-lists/adj_list_{/L}_{/lat}.txt"]
 [action.resources]
-walltime.per_directory = "00:15:00"
+walltime.per_directory = "05:00:00"
 
 [[action]]
 name = "compute_cumulant"
 command = "python src/actions/cumulant_computation.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action compute_cumulant {directory}"
 products = ["counts.txt.in_progress"]
 [action.resources]
-walltime.per_directory = "00:15:00"
+walltime.per_directory = "05:00:00"
+
+[[action]]
+name = "var"
+command = "python src/actions/data_variability.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action var {directory}"
+products = ["counts.txt.in_progress"]
+[action.resources]
+walltime.per_directory = "05:00:00"
 
 
 

@@ -1,16 +1,16 @@
 import signac
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
-import math
 import os
+import pandas as pd
+
 
 if __name__ == '__main__':
 
     project = signac.get_project("/home/tashfiq/wr_lattice/data/workspace")
 
     for job in project:
-        if job.sp.L == 64:
+        if job.sp.L == 50:
             L = job.sp.L
             M = job.sp.M
             z = job.sp.z
@@ -33,31 +33,25 @@ if __name__ == '__main__':
                         if param == "demixed":
                             data_demixed.append(float(x))
             
-                plt.figure(figsize=(8, 5))
-                # plt.plot(data_crystal, label='Crystal Order Parameter')
-                # plt.plot(data_density, label='Density')
-                plt.plot(data_demixed, label='Demixed Order Parameter')
+            df = pd.DataFrame({
+                "crystal": data_crystal,
+                "density": data_density,
+                "demixed": data_demixed
+            })
+                
+            df = df.iloc[20000:]
+            
+            dirr = "/home/tashfiq/wr_lattice/data/sampling/var"
+            os.makedirs(dirr, exist_ok=True)
+            path = os.path.join(dirr, f"var_L{L}_M{M}_z{z:.2f}_3000000.txt")
 
-                plt.xlabel("Monte Carlo Steps")
-                plt.ylabel("Value")
-                plt.title(f"Simulation Results (L={L}, M={M}, z={z:.2f}, lat={lat})")
-                plt.legend()
-                plt.grid(True)
-                plt.tight_layout()
-
-                # Save figure to the plots directory
-                plot_dir = "/home/tashfiq/wr_lattice/data/sampling/plots"
-                os.makedirs(plot_dir, exist_ok=True)
-                plot_path = os.path.join(plot_dir, f"plot_L{L}_M{M}_z{z:.2f}_{lat}.png")
-                plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-                plt.close()
-
-
-        
-
-
-        
+            with open(path, "w") as f:
+                f.write(str(df["demixed"].std()))
+       
 
 
 
 
+
+
+            

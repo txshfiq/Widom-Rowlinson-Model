@@ -510,6 +510,50 @@ nodeValuesToGrid(const std::vector<T>& nodeVals,
     return valueGrid;
 }
 
+void printColoredGrid(const std::vector<std::vector<int>>& grid)
+{
+    // 20 reasonably distinct ANSI 256-color codes
+    static const int colors[20] = {
+        196, // red
+        202, // orange
+        208, // dark orange
+        226, // yellow
+        190, // yellow-green
+        46,  // green
+        40,  // dark green
+        51,  // cyan
+        39,  // blue
+        27,  // dark blue
+        93,  // purple
+        129, // violet
+        201, // magenta
+        198, // pink
+        160, // crimson
+        130, // brown
+        214, // gold
+        117, // light blue
+        121, // mint
+        244  // gray
+    };
+
+    for (const auto& row : grid) {
+        for (int val : row) {
+
+            int color;
+
+            if (val == 0)
+                color = 15; // white
+            else
+                color = colors[(val - 1) % 20];
+
+            std::cout
+                << "\033[48;5;" << color << "m"
+                << "  "
+                << "\033[0m";
+        }
+        std::cout << '\n';
+    }
+}
 
 
 
@@ -764,11 +808,14 @@ int main(int argc, char* argv[]) {
         // of_cp_2 << param2 << std::endl;
 
         // of_de << density(nodes) << std::endl;
+
+        printColoredGrid(nodeValuesToGrid(nodes, lattice_adjacency_list));
+
         std::cout << param << std::endl;     
         s++;
     }
     
-    
+    /*
     for (int k = 0; k < nodes.size(); k++) {
         node_coloring << nodes[k] << std::endl;
     }
@@ -786,7 +833,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     pclose(oth);
-    
+    */
 
     // of_cp.close();
     // of_cp_2.close();

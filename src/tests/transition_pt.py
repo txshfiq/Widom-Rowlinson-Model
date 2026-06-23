@@ -12,16 +12,15 @@ def crossing_fit(L, zc, A):
 
 start = 30      
 step = 4       
-length = 16        
+length = 10     
 
 system_sizes = [start + i*step for i in range(length)]
-
 
 print(system_sizes)
 
 project = signac.get_project("/home/tashfiq/wr_lattice/data/workspace")
 L_param = np.array(system_sizes[:-1])
-M = 3 ##############
+M = 5 ##############
 n_bootstraps = 1500
 x_data = [job.sp.z for job in sorted(project.find_jobs({'M': M, 'L': system_sizes[0]}), key=lambda job: job.sp.z)]
 min_z = x_data[0] ##############
@@ -67,7 +66,7 @@ for i in range(len(system_sizes)-1):
         int_pts_i = np.append(int_pts_i, all_roots)  
     elif len(all_roots) > 1:
         avg = int_pts_i.mean()
-        correct = np.argmin(np.abs(all_roots - avg))
+        correct = np.argmin(np.abs(all_roots - 3.8025))
         all_roots = all_roots[correct].item()
         print("There were more than one intersections to find actual intersection:", system_sizes[i], system_sizes[i+1])
         int_pts_i = np.append(int_pts_i, all_roots)
@@ -82,8 +81,9 @@ for k in range(n_bootstraps):
         y_data_2 = bootstrapped_curves[system_sizes[i+1]][k, :]
 
         y_diff = y_data_1 - y_data_2
-        # cs = CubicSpline(x_data, y_diff, bc_type='natural')
-        # all_roots = cs.roots()
+        
+        #cs = CubicSpline(x_data, y_diff, bc_type='natural')
+        #all_roots = cs.roots()
         
         coeffs = np.polyfit(x_data, y_diff, 3)
         roots = np.roots(coeffs)
@@ -97,7 +97,7 @@ for k in range(n_bootstraps):
             int_pts = np.append(int_pts, all_roots)
         elif len(all_roots) > 1:
             avg = int_pts.mean()
-            correct = np.argmin(np.abs(all_roots - avg))
+            correct = np.argmin(np.abs(all_roots - 3.8025))
             all_roots = all_roots[correct].item()
             print("There were more than one intersections to find error:", system_sizes[i], system_sizes[i+1])
             int_pts = np.append(int_pts, all_roots)
@@ -128,11 +128,10 @@ x_smooth = np.linspace(1e-6, max(1/L_param), 200)
 L_smooth = 1 / x_smooth 
 plt.plot(x_smooth, crossing_fit(L_smooth, *popt), 'r-', label='Fitted Curve')
 
-
 plt.xlim(0, 0.035)
-plt.ylim(2.6, 2.7)
-plt.xlabel('1/L')
-plt.ylabel('Crossing Point z(L)')
+plt.ylim(3.75, 3.85)
+plt.xlabel(r'$L^{-1}$')
+plt.ylabel(r'Crossing Point $z_c(L)$')
 plt.legend()
 plt.savefig('finite-size_scaling.png', dpi=300, bbox_inches='tight')
 plt.show()

@@ -4,7 +4,8 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import math
-from scipy.stats import bootstrap 
+from scipy.stats import bootstrap
+from pymbar import timeseries 
 
 def output_cumulant(job, cumulant):
     with open(job.fn("cumulant.txt"), "w") as file:
@@ -19,8 +20,20 @@ def add_error_bars(job, error):
     with open(job.fn("error_bars.txt"), "w") as file:
         file.write(str(error) + "\n")
 
+def autocorr_time(job, error):
+    with open(job.fn("autocorr.txt"), "w") as file:
+        file.write(str(error) + "\n")        
 
-def plot_block_curve(ax, L, avg, err, ref_value=None):
+def cumulant_noise(L, M, z, error):
+    dirr = "/home/tashfiq/wr_lattice/data/sampling/var"
+    os.makedirs(dirr, exist_ok=True)
+    path = os.path.join(dirr, f"var_L{L}_M{M}_z{z:.2f}_1000000.txt")
+
+    with open(path, "w") as f:
+        f.write(str(error) + "\n")
+
+
+def plot_block_curve(ax, L, avg, err, id, ref_value=None):
 
     ax.errorbar(L, avg, yerr=err, fmt='|', lw=1, capsize=0)
     ax.plot(L, avg, lw=1)
@@ -33,14 +46,14 @@ def plot_block_curve(ax, L, avg, err, ref_value=None):
         ax.axhline(ref_value, color='gray', linestyle='--', linewidth=1)
 
     plt.tight_layout()
-    plt.savefig("block_curve.png", dpi=300, bbox_inches="tight")  # PNG (raster)
+    plt.savefig(f"errors/block_curve_{id}.png", dpi=300, bbox_inches="tight")  # PNG (raster)
 
 def binder_cumulant(data):
     data = np.array(data)
     s_2 = data**2
     s_4 = data**4
 
-    U_L = 1 - (1/3)*(np.mean(s_4, axis=1)/np.mean(s_2, axis=1)**2)
+    U_L = 1 - (1/3)*(np.mean(s_4)/np.mean(s_2)**2)
 
     return U_L
 
@@ -54,7 +67,7 @@ def autocorr(j, data):
 
     return covar/var
 
-def block_curve_analysis(data):
+def block_curve_analysis(data, id):
     errors = []
     mean_block_avgs = []
     block_sizes = np.arange(100, 4000 + 1, 100)
@@ -75,7 +88,7 @@ def block_curve_analysis(data):
         errors.append(err)
     
     fig, ax = plt.subplots(figsize=(5,4))   
-    plot_block_curve(ax, block_sizes, mean_block_avgs, errors, binder_cumulant(data))
+    plot_block_curve(ax, block_sizes, mean_block_avgs, errors, id, binder_cumulant(data))
 
 if __name__ == '__main__':
 
@@ -124,7 +137,7 @@ if __name__ == '__main__':
 
     data = []
 
-    filename = param + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.2f}".replace('.', '-') + "_" + lat + ".txt"
+    filename = param + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.3f}".replace('.', '-') + "_" + lat + ".txt"
     pathname = "/home/tashfiq/wr_lattice/data/sampling/" + param + "/" + filename
 
     with open(pathname, "r") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph
@@ -133,21 +146,22 @@ if __name__ == '__main__':
 
     data = np.array(data)
 
-    data = data[20000:]
+    data = data[5000:]
 
-    bs = bootstrap((data,), np.mean, n_resamples=1500)
-    cum_perturbs = binder_cumulant(bs)
+    n_resamples = 1500
+    n = len(data)
+
+    cumulants = []
+    for _ in range(1500):
+        sample = np.random.choice(data, size=len(data), replace=True)
+        cumulants.append(binder_cumulant(sample))
             
 
-    '''
     g = timeseries.statistical_inefficiency(data)
     tau_int = (g-1.0) / 2.0
-
-    data = data[::math.floor(tau_int)]
-    '''
     
-    '''
-    L_opt = 3000
+
+    L_opt = 2000
 
     N_b = math.floor(len(data)/L_opt)
     blocked_data = data[:N_b*L_opt].reshape(N_b, L_opt)
@@ -158,16 +172,16 @@ if __name__ == '__main__':
         var += (block_vals[i] - ensemble_avg)**2
     var /= (N_b - 1)
     err = np.sqrt(var / N_b)
-    '''
-    
+
     U_L = binder_cumulant(data)
-    
-    
+
+
     for job in project:
         if job.sp.L == L and job.sp.M == M and job.sp.z == z:
             output_cumulant(job, U_L)
-            # add_error_bars(job, err)
-            bootstrap(job, cum_perturbs)
+            add_error_bars(job, err)
+            bootstrap(job, cumulants)
+            autocorr_time(job, tau_int)
 
     # Call the action
     # globals()[args.action](*jobs)

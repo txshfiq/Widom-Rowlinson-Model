@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 #include <complex>
 #include <algorithm>
+#include <filesystem>
 
 
 using namespace std;
@@ -21,7 +22,7 @@ struct MyArgs : public argparse::Args {
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
 
     g++ -std=c++17 -I./include src/main.cpp -o main -lstdc++fs -O3
-    ./main --L 15 --M 15 --z 6 --lat square
+    ./main --L 24 --M 5 --z 3.6 --lat square
 
 */
 
@@ -217,6 +218,55 @@ double crystalParameter(std::vector<int> nodes, std::vector<int> sublattice_loca
 
 }
 
+void visLattice(
+    const std::vector<int>& node_values,
+    const std::vector<std::vector<int>>& adjacency_list
+) {
+    int n_nodes = node_values.size();
+    int N = static_cast<int>(std::sqrt(n_nodes));
+
+    if (N * N != n_nodes) {
+        throw std::runtime_error("Node count is not a perfect square.");
+    }
+
+    if (adjacency_list.size() != node_values.size()) {
+        throw std::runtime_error("Adjacency list size mismatch.");
+    }
+
+    auto color_code = [](int v) -> std::string {
+        switch (v) {
+            case 0:  return "\033[40m";   // black
+            case 1:  return "\033[41m";   // red
+            case 2:  return "\033[42m";   // green
+            case 3:  return "\033[43m";   // yellow
+            case 4:  return "\033[44m";   // blue
+            case 5:  return "\033[45m";   // magenta
+            case 6:  return "\033[46m";   // cyan
+            case 7:  return "\033[47m";   // white
+            case 8:  return "\033[100m";  // bright black (gray)
+            case 9:  return "\033[101m";  // bright red
+            case 10: return "\033[102m";  // bright green
+            case 11: return "\033[103m";  // bright yellow
+            case 12: return "\033[104m";  // bright blue
+            case 13: return "\033[105m";  // bright magenta
+            case 14: return "\033[106m";  // bright cyan
+            case 15: return "\033[107m";  // bright white
+            default: throw std::runtime_error("Invalid node value (must be 0–15)");
+        }
+    };
+
+    const std::string reset = "\033[0m";
+
+    for (int r = 0; r < N; r++) {
+        for (int c = 0; c < N; c++) {
+            int idx = r * N + c;
+            std::cout << color_code(node_values[idx]) << "  " << reset;
+        }
+        std::cout << "\n";
+    }
+}
+
+
 double density(std::vector<int> nodes) {
     int count = 0;
     for (int n : nodes) {
@@ -256,6 +306,101 @@ int randIntWithoutVal(int x, int y, int val) {
     return a;
 }
 
+struct Color {
+    int r, g, b;
+};
+
+void generateLatticeImage(const std::vector<int>& nodes, const std::vector<std::vector<int>>& adj, const std::string& filename) {
+    if (nodes.empty()) {
+        std::cerr << "Error: Node vector is empty." << std::endl;
+        return;
+    }
+
+    int N = nodes.size();
+    
+    // Explicitly calculate square lattice dimensions based on vector size
+    int cols = std::round(std::sqrt(N));
+    int rows = (N + cols - 1) / cols;
+
+    // Double-check to ensure it is actually a perfect square lattice
+    if (cols * rows != N) {
+        // Fallback: If it's a rectangle, recalculate rows cleanly
+        rows = N / cols;
+    }
+
+    // 15-color palette (0 = Black, 1-15 = Distinct Colors)
+    std::vector<Color> palette = {
+        {0, 0, 0},       // 0: Black
+        {255, 0, 0},     // 1: Red
+        {0, 255, 0},     // 2: Green
+        {0, 0, 255},     // 3: Blue
+        {255, 255, 0},   // 4: Yellow
+        {0, 255, 255},   // 5: Cyan
+        {255, 0, 255},   // 6: Magenta
+        {255, 128, 0},   // 7: Orange
+        {128, 0, 128},   // 8: Purple
+        {0, 128, 128},   // 9: Teal
+        {128, 128, 0},   // 10: Olive
+        {255, 192, 203}, // 11: Pink
+        {165, 42, 42},   // 12: Brown
+        {128, 128, 128}, // 13: Gray
+        {255, 215, 0},   // 14: Gold
+        {0, 250, 154}    // 15: Medium Spring Green
+    };
+
+    int cellSize = 10; // 30x30 pixels per grid block
+    int width = cols * cellSize;
+    int height = rows * cellSize;
+
+    std::string outFilename = filename;
+    if (outFilename.find(".ppm") == std::string::npos) {
+        outFilename += ".ppm";
+    }
+
+    std::ofstream out(outFilename);
+    if (!out) {
+        std::cerr << "Error: Could not open file " << outFilename << " for writing." << std::endl;
+        return;
+    }
+
+    // Write PPM Header
+    out << "P3\n" << width << " " << height << "\n255\n";
+
+    // Generate the pixels row by row
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            
+            // Map pixel coordinate back to the 2D grid cell
+            int gridX = x / cellSize;
+            int gridY = y / cellSize;
+            
+            // Map 2D grid cell to the 1D nodes vector index
+            int nodeIndex = gridY * cols + gridX;
+
+            Color c = {255, 255, 255}; // Default background (White)
+
+            if (nodeIndex < N) {
+                int val = nodes[nodeIndex];
+                if (val >= 0 && val <= 15) {
+                    c = palette[val];
+                } else {
+                    c = palette[(val % 15) + 1]; // Handle values > 15 gracefully
+                }
+            }
+
+            // Draw clean dark grid boundaries around cells
+            if (x % cellSize == 0 || y % cellSize == 0) {
+                c = {40, 40, 40}; 
+            }
+
+            out << c.r << " " << c.g << " " << c.b << " ";
+        }
+        out << "\n";
+    }
+
+    std::cout << "Successfully generated " << outFilename << " (" << width << "x" << height << " px) for a " << cols << "x" << rows << " lattice.\n";
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
@@ -266,7 +411,7 @@ int main(int argc, char* argv[]) {
     double z = args.z;
     string lat = args.lat;
     
-    int sweeps = 1750000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 6500000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -277,7 +422,7 @@ int main(int argc, char* argv[]) {
 
     std::ostringstream oss;
     oss.str("");
-    oss << std::fixed << std::setprecision(2) << z;
+    oss << std::fixed << std::setprecision(3) << z;
     std::string str_z = oss.str();
     std::string str_z_noformat = str_z; 
     
@@ -363,8 +508,9 @@ int main(int argc, char* argv[]) {
     }
     
     int s = 1; // start at sweep 1
+    int c = 1;
 
-    double p = 0.9;
+    double p = 0.95;
 
     std::bernoulli_distribution p_remove(p); // for cluster flipping
     std::bernoulli_distribution A_remove(std::min(1.0, (1.0/(z*M*p))));
@@ -418,6 +564,25 @@ int main(int argc, char* argv[]) {
 
         }
         
+        /*
+        if (s % 100 == 0) {
+            std::string folder = "data/movies/M" + std::to_string(M) + "/z" + str_z;
+
+            // Create all missing directories in the path
+            std::filesystem::create_directories(folder);
+
+            std::string name = folder + "/" + std::to_string(c) + ".ppm";
+
+            generateLatticeImage(
+                nodes,
+                lattice_adjacency_list,
+                name
+            );
+
+            c++;
+        }
+        */
+
         double cp = crystalParameter(nodes, sublattice_locations);
         double de = density(nodes);
         double dp = demixedParameter(nodes, M);
