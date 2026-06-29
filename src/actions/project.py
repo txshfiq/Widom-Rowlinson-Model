@@ -4,16 +4,17 @@ import subprocess
 import os
 import glob
 
-def run_wr(executable: str, L: int, M: int, z: float, lat: str) -> str:
+def run_wr(executable: str, L: int, M: int, z: float, lat: str, run: int) -> str:
     cmd = [
         f'./{executable}',
         '--L', str(L),
         '--M', str(M),
         '--z', str(z),
-        '--lat', lat
+        '--lat', lat,
+        '--run', str(run)
     ]
-    print(f"Simulation parameters: L = {L}, M = {M}, z = {z}, lat = {lat}")
-    
+    print(f"Simulation parameters: L = {L}, M = {M}, z = {z}, lat = {lat}, run = {run}")
+
     # --- MODIFICATION START ---
     try:
         completed = subprocess.run(
@@ -69,6 +70,12 @@ if __name__ == '__main__':
         required=True,
         help="Type of Lattice"
     )
+    parser.add_argument(
+        "--num4", "-run",
+        type=int,
+        required=True,
+        help="Run number"
+    )
 
     parser.add_argument('--action', required=True)
     parser.add_argument('directories', nargs='+')
@@ -84,9 +91,10 @@ if __name__ == '__main__':
     M = args.num2
     z = args.num1
     lat = args.str1
+    run = args.num4
 
-    output = run_wr(BIN, L, M, z, lat)
-    
+    output = run_wr(BIN, L, M, z, lat, run)
+
     print("Program output:\n", output)
 
     # Call the action

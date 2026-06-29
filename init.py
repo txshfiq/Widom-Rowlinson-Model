@@ -15,26 +15,24 @@ for item in os.listdir(directory):
         shutil.rmtree(item_path)
 
 
-start = 30      
-step = 6       
-length = 8     
-
-arr = [start + i*step for i in range(length)]
+arr = [30, 40, 50, 60, 70]
 
 
-z_vals = np.array([4.43, 4.44, 4.45, 4.46, 4.47, 4.48])
+z_vals = np.array([4.46, 4.47, 4.48, 4.49, 4.50, 4.51])
 
 rounded_z_vals = np.round(z_vals, 3)
 
 M_vals = [6]
+R = 100 
 
 
 for L in arr:
     for z in rounded_z_vals:
         for M in M_vals:
-            sp = {"z": float(z), "M": M, "L": L, "lat": "square"}
-            job = project.open_job(sp).init()
-            print(job)
+            for r in range(1, R+1): 
+                sp = {"z": float(z), "M": M, "L": L, "lat": "square", "run": r}
+                job = project.open_job(sp).init()
+                print(job)
 
 
 for str in ["crystal", "density", "demixed"]:

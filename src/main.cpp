@@ -17,6 +17,7 @@ struct MyArgs : public argparse::Args {
     int &L                        = kwarg("L", "Lattice size (L x L)");
     int &M                        = kwarg("M", "Number of species");
     string &lat                    = kwarg("lat", "Lattice Type");
+    int &run                        = kwarg("run", "Run number");
 };
 
 /* PUT THIS INTO COMMAND LINE (assuming you are in the parent directory as this file)
@@ -410,8 +411,9 @@ int main(int argc, char* argv[]) {
     int M = args.M;
     double z = args.z;
     string lat = args.lat;
+    int run = args.run;
     
-    int sweeps = 6500000; // will be modified during runtime when equilibrium point is reached
+    int sweeps = 1000000; // will be modified during runtime when equilibrium point is reached
 
     int k = 0; // number of colors (or sublattices) in lattice graph, will be set to 2 or 3 depending on the k-partiteness of the lattice
 
@@ -426,15 +428,16 @@ int main(int argc, char* argv[]) {
     std::string str_z = oss.str();
     std::string str_z_noformat = str_z; 
     
+    
     for (char &c : str_z) {
         if (c == '.') {
             c = '-';
         }
     }
 
-    std::string cp_filename = "data/sampling/crystal/crystal_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
-    std::string dp_filename = "data/sampling/demixed/demixed_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
-    std::string de_filename = "data/sampling/density/density_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + ".txt";
+    std::string cp_filename = "data/sampling/crystal/crystal_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + "_run" + std::to_string(run) + ".txt";
+    std::string dp_filename = "data/sampling/demixed/demixed_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + "_run" + std::to_string(run) + ".txt";
+    std::string de_filename = "data/sampling/density/density_L" + std::to_string(L) + "_M" + std::to_string(M) + "_z" + str_z + "_" + args.lat + "_run" + std::to_string(run) + ".txt";
 
     // opening data files
     std::ofstream cp_data(cp_filename.c_str());

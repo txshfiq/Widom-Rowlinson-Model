@@ -134,10 +134,11 @@ if __name__ == '__main__':
     lat = args.str1
 
     param = "demixed"
+    run = 3
 
     data = []
 
-    filename = param + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.3f}".replace('.', '-') + "_" + lat + ".txt"
+    filename = param + "_L" + str(L) + "_M" + str(M) + "_z" + f"{z:.3f}".replace('.', '-') + "_" + lat + "_run" + str(run) + ".txt"
     pathname = "/home/tashfiq/wr_lattice/data/sampling/" + param + "/" + filename
 
     with open(pathname, "r") as f:                  # get equilibriated system's nodes from main.cpp file, to be handled by NetworkX to display network graph

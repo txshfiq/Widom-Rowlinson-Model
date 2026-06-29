@@ -8,12 +8,12 @@ output_file_path = "/home/tashfiq/wr_lattice/data/results"
 
 [default.action.group]
 split_by_sort_key = true
-maximum_size      = 1
+maximum_size      = 5
 
 [[action]]
 name = "run_simulation"
 products = ["counts.txt.in_progress"]
-command = "python src/actions/project.py -z {/z} -M {/M} -L {/L} -lat {/lat} --action run_simulation {directory}"
+command = "python src/actions/project.py -z {/z} -M {/M} -L {/L} -lat {/lat} -run {/run} --action run_simulation {directory}"
 [action.resources]
 walltime.per_directory = "50:00:00"
 
