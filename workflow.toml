@@ -8,7 +8,7 @@ output_file_path = "/home/tashfiq/wr_lattice/data/results"
 
 [default.action.group]
 split_by_sort_key = true
-maximum_size      = 5
+maximum_size      = 6
 
 [[action]]
 name = "run_simulation"

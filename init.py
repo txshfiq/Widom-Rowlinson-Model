@@ -15,19 +15,17 @@ for item in os.listdir(directory):
         shutil.rmtree(item_path)
 
 
-arr = [30, 40, 50, 60, 70]
+arr = [30, 36, 42, 48, 52]
 
 
-z_vals = np.array([4.46, 4.47, 4.48, 4.49, 4.50, 4.51])
+z_vals = np.round(np.linspace(5.42, 5.52, 16), 3)
 
-rounded_z_vals = np.round(z_vals, 3)
-
-M_vals = [6]
-R = 100 
+M_vals = [7]
+R = 70 
 
 
 for L in arr:
-    for z in rounded_z_vals:
+    for z in z_vals:
         for M in M_vals:
             for r in range(1, R+1): 
                 sp = {"z": float(z), "M": M, "L": L, "lat": "square", "run": r}

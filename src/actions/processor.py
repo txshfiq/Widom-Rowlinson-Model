@@ -24,8 +24,11 @@ def crossing_fit(L, zc, A):
 param = "demixed"        # type of order parameter
 N = 1500                 # number of bootstrap samples
 burn_in = 10000           # number of initial samples to discard for equilibration
-cubic_spline = True     # whether to use cubic spline interpolation for root finding
-fixed_window = False      # whether to use a fixed window for root finding
+cubic_spline = False     # whether to use cubic spline interpolation for root finding
+fixed_window = True      # whether to use a fixed window for root finding
+generate_graphs = True      # whether to generate graphs for each bootstrap sample
+reset_bootstrap = True  # cancel a bootstrap sample if no intersection is found
+
 
 files = glob.glob(os.path.join("/home/tashfiq/wr_lattice/src/actions/bootstrap_graphs", "*"))
 for f in files:
@@ -95,6 +98,7 @@ if __name__ == '__main__':
         batches.set_description(f"Processing bootstrap samples")
         int_pts_i = np.array([])
         prev_L = None
+        skip_next = False
 
         for L, z_map in sorted_container.items():
             
@@ -130,12 +134,16 @@ if __name__ == '__main__':
                 all_roots = roots[np.isreal(roots)].real
                 all_roots = all_roots[(all_roots >= min_z) & (all_roots <= max_z)]
 
-            guess = 4.46
+            guess = 5.26
 
             if len(all_roots) == 0:
-                no_root_found = True
-                all_roots = guess
-                int_pts_i = np.append(int_pts_i, all_roots)  
+                no_root_found = True  
+                if reset_bootstrap:
+                    skip_next = True
+                    break
+                else:
+                    all_roots = guess
+                    int_pts_i = np.append(int_pts_i, guess)
             elif len(all_roots) > 1:
                 more_than_one_root = True
                 correct = np.argmin(np.abs(all_roots - guess))
@@ -145,24 +153,36 @@ if __name__ == '__main__':
                 int_pts_i = np.append(int_pts_i, all_roots.item())
 
             prev_L = L
-        
+        if skip_next:
+            continue
         int_pts = np.vstack([int_pts, int_pts_i]) if int_pts.size else int_pts_i
 
-        # Plot cumulant U_L vs activity (z) for this bootstrap sample.
-        plt.figure()
-        for L, z_map in sorted_container.items():
-            zs = np.array(sorted(z_map.keys()))
-            u_values = np.array([z_map[z]['avgs'][i] for z in zs])
-            plt.plot(zs, u_values, marker='o', linestyle='-', label=f'L={L}')
+        if generate_graphs:
+            # Plot cumulant U_L vs activity (z) for this bootstrap sample.
+            plt.figure()
+            for L, z_map in sorted_container.items():
+                zs = np.array(sorted(z_map.keys()))
+                u_values = np.array([z_map[z]['avgs'][i] for z in zs])
+                plt.plot(zs, u_values, marker='o', linestyle='None', label=f'L={L}')
 
-        plt.xlabel('Activity $z$')
-        plt.ylabel(r'Cumulant $U_L$')
-        plt.title(f'Bootstrap sample {i+1}: $U_L$ vs activity')
-        plt.legend(fontsize='small', loc='best')
-        plt.tight_layout()
-        sample_path = os.path.join(graphs_dir, f'bootstrap_sample_{i+1:04d}.png')
-        plt.savefig(sample_path, dpi=300, bbox_inches='tight')
-        plt.close()
+                zs_smooth = np.linspace(zs.min(), zs.max(), 200)
+                if cubic_spline:
+                    cs = CubicSpline(zs, u_values, bc_type='natural')
+                    fit_values = cs(zs_smooth)
+                    plt.plot(zs_smooth, fit_values, linestyle='-', label=f'L={L} spline fit')
+                else:
+                    coeffs = np.polyfit(zs, u_values, 3)
+                    fit_values = np.polyval(coeffs, zs_smooth)
+                    plt.plot(zs_smooth, fit_values, linestyle='-', label=f'L={L} cubic fit')
+
+            plt.xlabel('Activity $z$')
+            plt.ylabel(r'Cumulant $U_L$')
+            plt.title(f'Bootstrap sample {i+1}: $U_L$ vs activity')
+            plt.legend(fontsize='small', loc='best')
+            plt.tight_layout()
+            sample_path = os.path.join(graphs_dir, f'bootstrap_sample_{i+1:04d}.png')
+            plt.savefig(sample_path, dpi=300, bbox_inches='tight')
+            plt.close()
 
         '''
         print()
@@ -193,16 +213,29 @@ if __name__ == '__main__':
     plt.savefig('finite-size_scaling.png', dpi=300, bbox_inches='tight')
     
     plt.figure()
-    plt.hist(critical_points, bins=20, color='skyblue', edgecolor='black')
+    plt.hist(critical_points, bins=40, color='skyblue', edgecolor='black')
     plt.title('Distribution of Critical Points from Bootstrap Samples')
     plt.xlabel('Critical Point $z_c$')
     plt.ylabel('Frequency')
     plt.savefig('zc_distribution.png', dpi=300, bbox_inches='tight')
 
+    for i in range(int_pts.shape[1]):
+        plt.figure()
+        plt.hist(int_pts[:, i], bins=40, color='skyblue', edgecolor='black')
+        plt.title('Distribution of Intersection Points for L={}'.format(L_finite[i]))
+        plt.xlabel('Intersection Point $z_c(L)$')
+        plt.ylabel('Frequency')
+        plt.savefig('intersection_distribution_L_{}.png'.format(L_finite[i]), dpi=300, bbox_inches='tight')
+
+    print()
     if more_than_one_root:
         print("Warning: More than one intersection was found for some bootstrap samples.")
     if no_root_found:
         print("Warning: No intersection was found for some bootstrap samples.")
+    print()
+    if reset_bootstrap:
+        print("Bootstrap samples with no intersection were skipped due to reset_bootstrap=True. Total valid bootstrap samples: {}".format(int_pts.shape[0]))
+        print("Number of discarded samples: {}".format(N - int_pts.shape[0]))
 
 
 
